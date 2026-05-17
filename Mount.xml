@@ -528,7 +528,7 @@
 		
 		<!-- Criar arquivo de informações do build de teste -->
 		<echo file="${buildZip}/BUILD_INFO.txt">
-=== BUILD DE TESTE - CRIPTOGRAFIA ===
+=== BUILD DE TESTE ===
 Data: ${DSTAMP} ${TSTAMP}
 Tipo: Teste (sem arquivos de dados pesados)
 
@@ -548,10 +548,6 @@ ARQUIVOS EXCLUÍDOS (para reduzir tamanho):
 - game/data/locale/ (arquivos de idioma)
 - game/data/xml/ (arquivos XML)
 
-INSTRUÇÕES:
-1. Este build contém apenas arquivos essenciais para criptografia
-2. Para dados completos, use a distribuição completa
-3. Este build é ideal para testar funcionalidades de segurança
 		</echo>
 		
 		<echo message="=== BUILD DE TESTE CONCLUÍDO ===" />

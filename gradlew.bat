@@ -77,25 +77,56 @@ set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
 @rem   gradlew.bat br-menu             - abre menu interativo (brproject-menu.bat)
 @rem   gradlew.bat br-compile          - compila Java+Kotlin (compileJava compileKotlin)
 @rem   gradlew.bat br-compile-clean    - clean + compila
-@rem   gradlew.bat br-ant-dist-test    - ant -f Mount.xml dist-test
+@rem   gradlew.bat br-ant-dist-test    - ant -f Mount.xml dist-test e inicia servidores
 @rem ---------------------------------------------------------------------------
 if /i "%~1"=="br-menu" (
-  call "%APP_HOME%brproject-menu.bat"
-  goto end
+call "%APP_HOME%\brproject-menu.bat"
+goto end
 )
 if /i "%~1"=="br-compile" (
-  "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain compileJava compileKotlin
-  goto end
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain jar compileJava compileKotlin
+goto end
 )
 if /i "%~1"=="br-compile-clean" (
-  "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain clean compileJava compileKotlin
-  goto end
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain clean jar compileJava compileKotlin
+goto end
 )
 if /i "%~1"=="br-ant-dist-test" (
-  pushd "%APP_HOME%"
-  call ant -f Mount.xml dist-test
-  popd
-  goto end
+pushd "%APP_HOME%"
+
+@rem # STREAMING_CHUNK:Running ant dist-test
+echo Executando ant dist-test...
+call ant -f Mount.xml dist-test
+
+@rem Verifica se o comando ant falhou. Se falhar, não tenta abrir os servidores.
+if %ERRORLEVEL% neq 0 (
+echo.
+echo Falha ao executar ant -f Mount.xml dist-test. Servidores nao serao iniciados.
+popd
+goto fail
+)
+
+echo.
+echo Ant dist-test concluido com sucesso.
+
+@rem # STREAMING_CHUNK:Starting Login Server
+echo Iniciando StartLogin_SemDashboard.bat...
+if exist "Brproject_Distribution\StartLogin_SemDashboard.bat" (
+start "Login Server" cmd /c "cd /d Brproject_Distribution && call StartLogin_SemDashboard.bat"
+) else (
+echo Aviso: Arquivo Brproject_Distribution\StartLogin_SemDashboard.bat nao encontrado!
+)
+
+@rem # STREAMING_CHUNK:Starting Game Server
+echo Iniciando StartGame_SemDashboard.bat...
+if exist "Brproject_Distribution\StartGame_SemDashboard.bat" (
+start "Game Server" cmd /c "cd /d Brproject_Distribution && call StartGame_SemDashboard.bat"
+) else (
+echo Aviso: Arquivo Brproject_Distribution\StartGame_SemDashboard.bat nao encontrado!
+)
+
+popd
+goto end
 )
 
 @rem Execute Gradle
@@ -106,8 +137,8 @@ if /i "%~1"=="br-ant-dist-test" (
 if %ERRORLEVEL% equ 0 goto mainEnd
 
 :fail
-rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
-rem the _cmd.exe /c_ return code!
+rem Set variable GRADLE_EXIT_CONSOLE if you need the script return code instead of
+rem the cmd.exe /c return code!
 set EXIT_CODE=%ERRORLEVEL%
 if %EXIT_CODE% equ 0 set EXIT_CODE=1
 if not ""=="%GRADLE_EXIT_CONSOLE%" exit %EXIT_CODE%

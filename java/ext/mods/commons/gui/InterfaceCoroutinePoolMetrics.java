@@ -109,7 +109,7 @@ public class InterfaceCoroutinePoolMetrics extends ModernUI.SectionPanel {
 
                 long pfSubmitted = getLong(m, "pathfindingTasksSubmitted");
                 long pfCompleted = getLong(m, "pathfindingTasksCompleted");
-                barPathTasks.set("Pathfinder Tasks:", pfCompleted + " / " + pfSubmitted + " completed", (int) Math.max(pfSubmitted, 1), (int) Math.min(pfCompleted, Integer.MAX_VALUE));
+                barPathTasks.set("Pathfinder:", pfCompleted + " / " + pfSubmitted + " completed", (int) Math.max(pfSubmitted, 1), (int) Math.min(pfCompleted, Integer.MAX_VALUE));
 
                 long hikariQueries = ConnectionPool.getTotalQueries();
                 int barMax = 50_000;

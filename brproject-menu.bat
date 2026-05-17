@@ -11,7 +11,7 @@ echo      Brproject - Build
 echo   ========================================
 echo.
 echo   [1] Compilar normal (Java + Kotlin)
-echo   [2] Clean + compilar
+echo   [2] Clean + Compilar normal
 echo   [3] Ant: Mount.xml dist-test
 echo   [0] Sair
 echo.

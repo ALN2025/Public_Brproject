@@ -54,7 +54,7 @@ public class CustomTopPanel extends JPanel {
     private static final Color TITLE_BAR_BG = ThemeManager.VERY_DARK_BACKGROUND;
     private static final Color TITLE_BUTTON_COLOR = ThemeManager.BASE_PURPLE;
     private static final Color TITLE_BUTTON_HOVER_BG = ThemeManager.COMPONENT_BACKGROUND;
-    private static final Color TITLE_TEXT_COLOR = ThemeManager.TEXT_COLOR;
+    private static final Color TITLE_TEXT_COLOR = ThemeManager.TEXT_SELECTED;
 
     private final JFrame targetFrame;
     private final Runnable closeAction;

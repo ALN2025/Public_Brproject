@@ -268,7 +268,7 @@ public class InterfaceGS {
         item.setFont(new Font("Segoe UI", Font.PLAIN, fontSize)); 
         
         item.setBackground(ThemeManager.VERY_DARK_BACKGROUND);
-        item.setForeground(ThemeManager.TEXT_COLOR);
+        item.setForeground(ThemeManager.TEXT_SELECTED);
         
         item.addActionListener(listener); 
         return item; 

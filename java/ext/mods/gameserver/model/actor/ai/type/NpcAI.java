@@ -160,12 +160,12 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
         }
         
         if (weaponRange <= 200 && _actor.getMove() instanceof NpcMove npcMove) {
-            if (npcMove.maintainMeleeSpacing(target, weaponRange)) {
-                if (Config.DEBUG_MELEE_ATTACK) {
-                    LOGGER.info("[MeleeDebug] thinkAttack: spacingMove npc={} target={}", _actor.getObjectId(), target.getObjectId());
-                }
-                return;
-            }
+            //if (npcMove.maintainMeleeSpacing(target, weaponRange)) {
+                //if (Config.DEBUG_MELEE_ATTACK) {
+                   // LOGGER.info("[MeleeDebug] thinkAttack: spacingMove npc={} target={}", _actor.getObjectId(), target.getObjectId());
+                //}
+                //return;
+            //}
         }
         
         
@@ -627,12 +627,12 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
                                 final Creature target = toDoDesire.getFinalTarget();
                                 if (target != null) {
                                     final int weaponRange = (int) _actor.getStatus().getPhysicalAttackRange();
-                                    if (npcMove.maintainMeleeSpacing(target, weaponRange)) {
-                                        if (Config.DEBUG_MELEE_ATTACK) {
-                                            LOGGER.info("[MeleeDebug] runAI: spacingMove npc={} target={}", _actor.getObjectId(), target.getObjectId());
-                                        }
-                                        return;
-                                    }
+                                    //if (npcMove.maintainMeleeSpacing(target, weaponRange)) {
+                                        //if (Config.DEBUG_MELEE_ATTACK) {
+                                        //    LOGGER.info("[MeleeDebug] runAI: spacingMove npc={} target={}", _actor.getObjectId(), target.getObjectId());
+                                        //}
+                                        //return;
+                                    //}
                                 }
                             }
                             if (toDoDesire.getType() == IntentionType.ATTACK && (_lastDesire == null || (_lastDesire.getType() == IntentionType.WANDER || _lastDesire.getType() == IntentionType.IDLE)))

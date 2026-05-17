@@ -188,8 +188,8 @@ public class InterfaceLS {
 
     private JMenuItem createMenuItem(String title, java.awt.event.ActionListener listener) {
         JMenuItem item = new JMenuItem(title);
-        item.setBackground(ThemeManager.MENU_POPUP_BACKGROUND);
-        item.setForeground(ThemeManager.TEXT_COLOR);
+        item.setBackground(ThemeManager.VERY_DARK_BACKGROUND);
+        item.setForeground(ThemeManager.TEXT_SELECTED);
         if (listener != null) {
             item.addActionListener(listener);
         }
@@ -199,7 +199,7 @@ public class InterfaceLS {
     private JMenuItem createFontMenuItem(String size) {
         JMenuItem item = new JMenuItem(size);
         item.setBackground(ThemeManager.VERY_DARK_BACKGROUND);
-        item.setForeground(ThemeManager.TEXT_COLOR);
+        item.setForeground(ThemeManager.TEXT_SELECTED);
         item.addActionListener(e -> console.setFont(new Font("Consolas", Font.PLAIN, Integer.parseInt(size))));
         return item;
     }
@@ -207,7 +207,7 @@ public class InterfaceLS {
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
         
-        menuBar.setBackground(ModernUI.BG_DARK);
+        menuBar.setBackground(ModernUI.TEXT_GRAY);
         menuBar.setBorder(BorderFactory.createEmptyBorder());
         
         JMenu loginMenu = createMenu("Login");

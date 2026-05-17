@@ -63,7 +63,7 @@ public class LoginPanel {
     private final Preferences prefs = Preferences.userRoot().node("project_dashboard");
 
 	private static final Color COMPONENT_BACKGROUND = ThemeManager.COMPONENT_BACKGROUND;
-	private static final Color TEXT_COLOR = ThemeManager.TEXT_COLOR;
+	private static final Color TEXT_COLOR = ThemeManager.TEXT_SELECTED;
 	private static final Color BASE_PURPLE = ThemeManager.BASE_PURPLE;
 	private static final Color SOFT_PURPLE_SELECTION = ThemeManager.SOFT_PURPLE_SELECTION;
     

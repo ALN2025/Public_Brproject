@@ -84,7 +84,7 @@ public class ConfigGS {
         new ModFileConfig("Agathions", Paths.get("game", "data", "custom", "mods", "agathionList.xml"), "enabled"),
         new ModFileConfig("Announce Boss HP %", Paths.get("game", "data", "custom", "mods", "bossHpAnnounce.xml"), "enabled"),
         new ModFileConfig("Announce Raid Drop", Paths.get("game", "data", "custom", "mods", "raid_drop_announce.xml"), "enabled"),
-        new ModFileConfig("Battle Boss Event", Paths.get("game", "data", "custom", "mods", "battleboss.xml"), "enabled"),
+        new ModFileConfig("Battle Boss Event", Paths.get("game", "data", "custom", "mods", "battleboss.xml"), "<enabled>"),
         new ModFileConfig("Capsule Box", Paths.get("game", "data", "xml", "CapsuleBox.xml"), "enabled"),
         new ModFileConfig("Dress Me", Paths.get("game", "data", "custom", "mods", "DressMeData.xml"), "enabled"),
         new ModFileConfig("Dungeons Event", Paths.get("game", "data", "custom", "mods", "dungeon_event.xml"), "enabled"),
