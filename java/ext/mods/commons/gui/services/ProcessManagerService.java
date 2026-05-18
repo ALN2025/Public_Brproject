@@ -69,7 +69,16 @@ public class ProcessManagerService {
         StringBuilder cp = new StringBuilder();
         String sep = File.separator;
         cp.append(".").append(File.pathSeparator);
-        cp.append("..").append(sep).append("libs").append(sep).append("*");
+        try
+        {
+            final File libsDir = new File(diretorioExecucao, "../libs").getCanonicalFile();
+            cp.append(JvmOptimizer.buildRuntimeClasspath(libsDir));
+        }
+        catch (Exception e)
+        {
+            System.err.println("[AVISO] Classpath ordenado falhou, usando libs/*: " + e.getMessage());
+            cp.append("..").append(sep).append("libs").append(sep).append("*");
+        }
         cp.append(File.pathSeparator).append("..").append(sep).append("bin"); 
         cp.append(File.pathSeparator).append("..").append(sep).append("build").append(sep).append("classes");
         cp.append(File.pathSeparator).append("..").append(sep).append("build").append(sep).append("classes").append(sep).append("java").append(sep).append("main");

@@ -442,6 +442,13 @@
 		<echo message="Mantendo: libs/, login/, images/, sound/, Hwid/, tools/" />
 		<echo message="Criando em: ${buildZip}" />
 		
+		<!-- AppCDS: invalidar snapshots antigos apos recompilar server.jar -->
+		<echo message="Removendo caches AppCDS (game/login)..." />
+		<delete dir="game/cache" failonerror="false" quiet="true" />
+		<delete dir="login/cache" failonerror="false" quiet="true" />
+		<delete dir="${buildZip}/game/cache" failonerror="false" quiet="true" />
+		<delete dir="${buildZip}/login/cache" failonerror="false" quiet="true" />
+		
 		<!-- Remover arquivos pesados da distribuição existente -->
 		<echo message="Removendo arquivos pesados..." />
 		
@@ -483,10 +490,11 @@
 		<!-- Remover security-tools.jar original se existir na distribuição -->
 		<delete file="${buildZip}/libs/security-tools.jar" failonerror="false" />
 		
-		<!-- Garantir que login está atualizado -->
+		<!-- Garantir que login está atualizado (sem cache AppCDS) -->
 		<copy todir="${buildZip}/login">
 			<fileset dir="login">
 				<include name="**/*" />
+				<exclude name="cache/**" />
 			</fileset>
 		</copy>
 		
@@ -520,10 +528,19 @@
 		
 		<!-- Garantir que scripts de inicialização estão atualizados -->
 		<copy file="StartBrproject.bat" todir="${buildZip}" />
+		<copy file="StartGame_SemDashboard.bat" todir="${buildZip}" />
+		<copy file="StartLogin_SemDashboard.bat" todir="${buildZip}" />
 		<copy file="start.vbs" todir="${buildZip}" />
 		<copy file="README.md" todir="${buildZip}" />
 		<copy file="Dockerfile" todir="${buildZip}" />
 		<copy file="entrypoint.sh" todir="${buildZip}" />
+		
+		<!-- Scripts JVM (classpath, AppCDS, G1 reclaim) -->
+		<copy todir="${buildZip}/cache">
+			<fileset dir="cache">
+				<include name="*.inc.bat" />
+			</fileset>
+		</copy>
 
 		
 		<!-- Criar arquivo de informações do build de teste -->

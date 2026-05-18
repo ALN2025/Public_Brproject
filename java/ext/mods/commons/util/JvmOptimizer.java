@@ -21,12 +21,15 @@ import ext.mods.commons.logging.formatter.NoTimestampConsoleFormatter;
 import ext.mods.commons.pool.ThreadPool;
 import ext.mods.commons.pool.CoroutinePool;
 import java.io.File;
+import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.ConsoleHandler;
@@ -38,11 +41,14 @@ import java.util.logging.Logger;
 /**
  * Otimizador de JVM para JDK 25+ com melhorias no Garbage Collector.
  * Aplica configurações otimizadas para o novo GC e recursos modernos do JDK.
- * Inclui sistema de monitoramento de saúde e restart automático para manter redundância.
+ * Inclui sistema de monitoramento de saúde, AppCDS autônomo e restart automático.
  */
 public final class JvmOptimizer
 {
 	private static final CLogger LOGGER = new CLogger(JvmOptimizer.class.getName());
+	
+	private static final String APP_CDS_DIR = "cache";
+	private static final String APP_CDS_FILE = "cache/brproject_cds.jsa";
 	
 	private static boolean _initialized = false;
 	private static boolean _loggerConfigured = false;
@@ -54,7 +60,16 @@ public final class JvmOptimizer
 	private static final long MAX_RESTART_DELAY = 60000L;
 	private static final int MAX_CONSECUTIVE_FAILURES = 5;
 	private static final double MEMORY_THRESHOLD = 0.95;
-	private static final long HEALTH_CHECK_INTERVAL = 30000L;
+	private static final long HEALTH_CHECK_INTERVAL = 70000L;
+	
+	/** Intervalo do G1 Periodic GC (equivalente ao ZCollectionInterval do ZGC). */
+	public static final long G1_PERIODIC_GC_INTERVAL_MS = 70000L;
+	/** Minimo de heap committed ociosa antes de solicitar GC (comportamento similar ao ZUncommit). */
+	private static final long G1_RECLAIM_MIN_WASTE_BYTES = 256L * 1024L * 1024L;
+	/** Fracao minima de committed nao utilizada para disparar reclaim. */
+	private static final double G1_RECLAIM_WASTE_RATIO = 0.25;
+	
+	private static volatile Boolean _g1GcActive = null;
 	private static final int THREAD_WARN_PER_CORE = 700;
 	private static final int THREAD_WARN_PEAK_PER_CORE = 1400;
 	private static final int THREAD_WARN_MIN = 4000;
@@ -101,9 +116,65 @@ public final class JvmOptimizer
 			applyStandardOptimizations();
 		}
 		
+		checkAndOptimizeAppCDS();
+		
 		suggestGcSettings(majorVersion);
 		
 		initializeHealthMonitoring();
+	}
+	
+	/**
+	 * Verifica o status do AppCDS (Application Class Data Sharing).
+	 * Auxilia o administrador a saber se o servidor está iniciando com cache de classes.
+	 */
+	private static void checkAndOptimizeAppCDS()
+	{
+		LOGGER.info("  [AppCDS] Verificando subsistema de Class Data Sharing...");
+		
+		final File cacheDir = new File(APP_CDS_DIR);
+		if (!cacheDir.exists())
+			cacheDir.mkdirs();
+		
+		final File archiveFile = new File(APP_CDS_FILE);
+		final RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
+		final String vmArgs = String.join(" ", runtimeBean.getInputArguments());
+		
+		final boolean hasAutoCreate = vmArgs.contains("-XX:+AutoCreateSharedArchive");
+		final boolean hasSharedFile = vmArgs.contains("-XX:SharedArchiveFile");
+		
+		final boolean useZgc = vmArgs.contains("-XX:+UseZGC");
+		if (useZgc && hasAutoCreate)
+		{
+			LOGGER.warn("     [AVISO] ZGC + AppCDS: heap CDS incompativel (compressed oops desligado).");
+			LOGGER.warn("        -> Remova -XX:+AutoCreateSharedArchive ou use G1GC nos scripts .bat.");
+			LOGGER.warn("        -> Apague {} antes de iniciar.", APP_CDS_FILE);
+		}
+		
+		if (hasAutoCreate && hasSharedFile)
+		{
+			if (archiveFile.exists())
+			{
+				LOGGER.info("     [OK] AppCDS ativo e funcional!");
+				LOGGER.info("        -> Snapshot carregado de: {}", APP_CDS_FILE);
+				LOGGER.info("        -> Boot do servidor acelerado (classes pre-compiladas em cache).");
+			}
+			else
+			{
+				LOGGER.warn("     [Treinamento] AppCDS em modo de criacao.");
+				LOGGER.warn("        -> O arquivo {} ainda nao existe ou as classes foram atualizadas.", APP_CDS_FILE);
+				LOGGER.warn("        -> A JVM criara o snapshot automaticamente ao encerrar o servidor.");
+				LOGGER.warn("        -> O proximo boot ja sera mais rapido.");
+				LOGGER.warn("        -> No shutdown, avisos [cds] sobre JFR/proxy sao normais (classes nao arquivaveis).");
+				LOGGER.warn("        -> Use classpath fixo (cache/brproject-classpath.inc.bat); evite libs/* no Windows.");
+			}
+		}
+		else
+		{
+			LOGGER.warn("     [OFF] AppCDS desativado na linha de comando (.bat / .sh)!");
+			LOGGER.warn("        Para ativar boot ultra-rapido, adicione as flags no executor:");
+			LOGGER.warn("        -XX:+AutoCreateSharedArchive -XX:SharedArchiveFile={}", APP_CDS_FILE);
+		}
+		LOGGER.info("");
 	}
 	
 	/**
@@ -346,7 +417,7 @@ public final class JvmOptimizer
 			
 			LOGGER.info("     [OK] Garbage Collector (GC) Otimizado");
 			LOGGER.info("        -> ZGC: Large Pages, Fast Path, Compact habilitados");
-			LOGGER.info("        -> G1GC: String Deduplication, Adaptive IHOP, Incremental Compaction");
+			LOGGER.info("        -> G1GC: Periodic GC {}ms, shrink heap, String Dedup, Adaptive IHOP", G1_PERIODIC_GC_INTERVAL_MS);
 			LOGGER.info("        -> Threads configuradas automaticamente baseado em {} processadores", 
 				Runtime.getRuntime().availableProcessors());
 		}
@@ -451,6 +522,12 @@ public final class JvmOptimizer
 			LOGGER.info("     |   -XX:+UseTransparentHugePages (Linux)                               |");
 			LOGGER.info("     +----------------------------------------------------------------------+");
 			LOGGER.info("");
+			LOGGER.info("     +--- AppCDS: BOOT ULTRA-RAPIDO -----------------------------------------+");
+			LOGGER.info("     |   -XX:+AutoCreateSharedArchive                                       |");
+			LOGGER.info("     |   -XX:SharedArchiveFile={}                              |", APP_CDS_FILE);
+			LOGGER.info("     |   -> 1o boot: cria cache ao desligar | 2o boot: startup acelerado   |");
+			LOGGER.info("     +----------------------------------------------------------------------+");
+			LOGGER.info("");
 		}
 		else
 		{
@@ -551,10 +628,18 @@ public final class JvmOptimizer
 				flags.add("-XX:G1ReservePercent=20");
 				flags.add("-XX:InitiatingHeapOccupancyPercent=45");
 				flags.add("-XX:+UseStringDeduplication");
+				flags.addAll(getG1MemoryReclaimFlags());
 			}
 			
 			flags.add("-XX:+UseCompactObjectHeaders");
 			
+			// AppCDS (heap): apenas com G1GC. ZGC + CompactObjectHeaders desativa compressed oops.
+			if (!useZgc)
+			{
+				flags.add("-XX:+AutoCreateSharedArchive");
+				flags.add("-XX:SharedArchiveFile=" + APP_CDS_FILE);
+				flags.add("-Xlog:cds=error");
+			}
 			
 			if (enableJfr)
 			{
@@ -564,10 +649,12 @@ public final class JvmOptimizer
 				flags.add("-XX:+DebugNonSafepoints");
 			}
 			
-			flags.add("-XX:+UseCompressedOops");
-			if (majorVersion < 25)
+			// ZGC + CompactObjectHeaders desativa compressed oops; nao forcar +UseCompressedOops com ZGC (quebra AppCDS).
+			if (!useZgc)
 			{
-				flags.add("-XX:+UseCompressedClassPointers");
+				flags.add("-XX:+UseCompressedOops");
+				if (majorVersion < 25)
+					flags.add("-XX:+UseCompressedClassPointers");
 			}
 			flags.add("-XX:+TieredCompilation");
 			flags.add("-XX:TieredStopAtLevel=4");
@@ -610,6 +697,105 @@ public final class JvmOptimizer
 	}
 	
 	/**
+	 * Caminho do arquivo de snapshot AppCDS (Application Class Data Sharing).
+	 */
+	public static String getAppCdsArchiveFile()
+	{
+		return APP_CDS_FILE;
+	}
+	
+	/**
+	 * Monta classpath ordenado para runtime (AppCDS + Kotlin 2.3).
+	 * Exclui JARs duplicados/antigos que causam NoClassDefFoundError (ex.: SpillingKt).
+	 *
+	 * @param libsDir pasta libs (ex.: ../libs a partir de game/ ou login/)
+	 * @return classpath com server.jar primeiro, demais JARs em ordem alfabetica
+	 */
+	public static String buildRuntimeClasspath(File libsDir)
+	{
+		if (libsDir == null || !libsDir.isDirectory())
+			throw new IllegalArgumentException("libsDir invalido: " + libsDir);
+		
+		final List<String> entries = new ArrayList<>();
+		final File serverJar = new File(libsDir, "server.jar");
+		if (serverJar.isFile())
+			entries.add(serverJar.getAbsolutePath());
+		
+		final File[] jars = libsDir.listFiles((dir, name) -> name.endsWith(".jar"));
+		if (jars != null)
+		{
+			Arrays.sort(jars, Comparator.comparing(File::getName));
+			for (File jar : jars)
+			{
+				if (!shouldExcludeRuntimeJar(jar.getName()))
+					entries.add(jar.getAbsolutePath());
+			}
+		}
+		return String.join(File.pathSeparator, entries);
+	}
+	
+	private static boolean shouldExcludeRuntimeJar(String fileName)
+	{
+		if ("server.jar".equalsIgnoreCase(fileName))
+			return true;
+		if (fileName.endsWith(".encrypted"))
+			return true;
+		// Duplicatas antigas (build usa Kotlin 2.3.0-Beta2 + coroutines 1.9.0)
+		if ("kotlin-stdlib-2.0.0.jar".equalsIgnoreCase(fileName))
+			return true;
+		if ("kotlin-reflect-2.0.0.jar".equalsIgnoreCase(fileName))
+			return true;
+		return "kotlinx-coroutines-core-jvm-1.8.1.jar".equalsIgnoreCase(fileName);
+	}
+	
+	/**
+	 * Flags JVM exclusivas do AppCDS para uso em scripts .bat / .sh.
+	 */
+	/**
+	 * Flags G1 para reclaim periodico de heap (similar a ZGC ZUncommit + ZCollectionInterval).
+	 * G1PeriodicGCInterval=30s, shrink heap agressivo (Min/MaxHeapFreeRatio).
+	 */
+	public static List<String> getG1MemoryReclaimFlags()
+	{
+		final List<String> flags = new ArrayList<>(4);
+		flags.add("-XX:G1PeriodicGCInterval=" + G1_PERIODIC_GC_INTERVAL_MS);
+		flags.add("-XX:+G1PeriodicGCInvokesConcurrent");
+		flags.add("-XX:MinHeapFreeRatio=10");
+		flags.add("-XX:MaxHeapFreeRatio=30");
+		return flags;
+	}
+	
+	private static boolean isG1GcActive()
+	{
+		if (_g1GcActive != null)
+			return _g1GcActive;
+		
+		boolean g1 = false;
+		for (GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans())
+		{
+			if (gc.getName().toLowerCase().contains("g1"))
+			{
+				g1 = true;
+				break;
+			}
+		}
+		_g1GcActive = g1;
+		return g1;
+	}
+	
+	/**
+	 * Flags AppCDS (usar somente com G1GC, nao com ZGC).
+	 */
+	public static List<String> getAppCdsFlags()
+	{
+		final List<String> flags = new ArrayList<>(3);
+		flags.add("-XX:+AutoCreateSharedArchive");
+		flags.add("-XX:SharedArchiveFile=" + APP_CDS_FILE);
+		flags.add("-Xlog:cds=error");
+		return flags;
+	}
+	
+	/**
 	 * Inicializa o sistema de monitoramento de saúde e restart automático.
 	 */
 	private static void initializeHealthMonitoring()
@@ -635,6 +821,8 @@ public final class JvmOptimizer
 		LOGGER.info("     | [OK] Restart automatico em caso de erro ou falta de recursos  |");
 		LOGGER.info("     | [OK] Respeita desligamentos normais (nao reinicia)          |");
 		LOGGER.info("     | [OK] Verificacao a cada {} segundos                        |", HEALTH_CHECK_INTERVAL / 1000);
+		if (isG1GcActive())
+			LOGGER.info("     | [OK] G1 reclaim periodico a cada {}s (heap + OS)           |", G1_PERIODIC_GC_INTERVAL_MS / 1000);
 		LOGGER.info("     +---------------------------------------------------------------+");
 		LOGGER.info("");
 	}
@@ -729,6 +917,8 @@ public final class JvmOptimizer
 				final long usedMemory = heapUsage.getUsed();
 				final long maxMemory = heapUsage.getMax();
 				
+				performG1PeriodicReclaim(memoryBean, heapUsage);
+				
 				if (maxMemory > 0)
 				{
 					final double memoryUsagePercent = (double) usedMemory / maxMemory;
@@ -793,6 +983,37 @@ public final class JvmOptimizer
 			}
 		}
 
+		/**
+		 * A cada {@link #HEALTH_CHECK_INTERVAL} solicita GC quando ha muita heap committed ociosa
+		 * (comportamento proximo ao ZUncommit do ZGC). Complementa {@link #getG1MemoryReclaimFlags()}.
+		 */
+		private void performG1PeriodicReclaim(MemoryMXBean memoryBean, MemoryUsage heapUsage)
+		{
+			if (!isG1GcActive())
+				return;
+			
+			final long used = heapUsage.getUsed();
+			final long committed = heapUsage.getCommitted();
+			if (committed <= 0)
+				return;
+			
+			final long maxMemory = heapUsage.getMax();
+			long minWaste = G1_RECLAIM_MIN_WASTE_BYTES;
+			if (maxMemory > 0 && maxMemory < G1_RECLAIM_MIN_WASTE_BYTES)
+				minWaste = Math.max(32L * 1024L * 1024L, maxMemory / 4);
+			
+			final long waste = committed - used;
+			if (waste < minWaste)
+				return;
+			if ((double) waste / committed < G1_RECLAIM_WASTE_RATIO)
+				return;
+			
+			//LOGGER.info("  [G1 Reclaim] Heap committed={}MB used={}MB | liberando ~{}MB ociosos",
+			//	committed / (1024 * 1024), used / (1024 * 1024), waste / (1024 * 1024));
+			
+			memoryBean.gc();
+		}
+		
 		private boolean shouldWarnHighThreads(int threadCount, int peakThreadCount)
 		{
 			final int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
