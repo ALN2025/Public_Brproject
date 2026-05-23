@@ -41,13 +41,11 @@ public class ProcessManagerService {
     private String getJavaExecutable() {
         String ext = System.getProperty("os.name").toLowerCase().contains("win") ? ".exe" : "";
         
-        // 1º Tentativa: Usar a variável de ambiente JAVA_HOME do sistema operacional
         String javaHome = System.getenv("JAVA_HOME");
         if (javaHome != null && !javaHome.trim().isEmpty()) {
             return javaHome + File.separator + "bin" + File.separator + "java" + ext;
         }
 
-        // 2º Tentativa (Fallback): Usar o diretório do Java que está rodando este próprio painel/launcher
         System.err.println("[AVISO] Variável de ambiente JAVA_HOME não encontrada. Usando java.home embutido.");
         return System.getProperty("java.home") + File.separator + "bin" + File.separator + "java" + ext;
     }
@@ -69,8 +67,6 @@ public class ProcessManagerService {
         String caminhoJava = getJavaExecutable();
 
         if (!new File(caminhoJava).exists()) {
-            // Se mesmo com os fallbacks o arquivo não existir fisicamente, tentamos rodar apenas "java" 
-            // e confiar que o executável está injetado diretamente na variável PATH do Windows/Linux.
             System.err.println("[AVISO] Caminho exato do Java não encontrado: " + caminhoJava + ". Tentando executar comando global 'java'.");
             caminhoJava = "java";
         }
@@ -99,19 +95,14 @@ public class ProcessManagerService {
         cp.append(File.pathSeparator).append("..").append(sep).append("build").append(sep).append("classes");
         cp.append(File.pathSeparator).append("..").append(sep).append("build").append(sep).append("classes").append(sep).append("java").append(sep).append("main");*/
 
-        // --- INÍCIO DA CORREÇÃO DO CLASSPATH PARA APPCDS ---
         String cpString = "";
         try {
             final File libsDir = new File(diretorioExecucao, "../libs").getCanonicalFile();
-            // JvmOptimizer já retorna a string perfeita só com os .jars organizados
             cpString = JvmOptimizer.buildRuntimeClasspath(libsDir); 
         } catch (Exception e) {
             System.err.println("[AVISO] Classpath ordenado falhou, usando libs/*: " + e.getMessage());
-            // Se cair aqui, o AppCDS vai falhar de qualquer jeito por causa do asterisco, 
-            // mas o servidor ainda liga sem cache.
             cpString = ".." + File.separator + "libs" + File.separator + "*"; 
         }
-        // NOTA: Removemos os appends de ".", "bin" e "build/classes". 
         
 
         String mainClass = tipo.equals("gameserver") ? "ext.mods.gameserver.GameServer" : "ext.mods.loginserver.LoginServer";
@@ -119,7 +110,6 @@ public class ProcessManagerService {
         List<String> command = new ArrayList<>();
         command.add(caminhoJava);
         
-        // Memória parametrizada pela GUI
         command.add("-Xms" + memoryMB + "m");
         command.add("-Xmx" + memoryMB + "m");
         
@@ -130,7 +120,6 @@ public class ProcessManagerService {
             command.add("-Dbrproject.safe.graphics=true");
         }
         
-        // --- INÍCIO DAS FLAGS OTIMIZADAS DO INICIALIZADOR ---
         command.add("-XX:+UseG1GC");
         command.add("-XX:MaxGCPauseMillis=200");
         command.add("-XX:G1HeapRegionSize=16m");
@@ -140,11 +129,9 @@ public class ProcessManagerService {
         command.add("-XX:+TieredCompilation");
         command.add("-XX:TieredStopAtLevel=4");
         
-        // CDS Flags
         command.add("-XX:+AutoCreateSharedArchive");
         command.add("-XX:SharedArchiveFile=cache/brproject_cds.jsa");
         command.add("-Xlog:cds=error");
-        // --- FIM DAS FLAGS OTIMIZADAS ---
 
         command.add("-cp");
         command.add(cpString);

@@ -17,7 +17,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  * * Our main Developers: Dhousefe-L2JBR, Agazes33, Ban-L2jDev, Warman, SrEli.
- * Our special thanks: Nattan Felipe, Diego Fonseca, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo
+ * Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, 
+ * SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
  * as a contribution for the forum L2JBrasil.com
  */
 package ext.mods.gameserver.geoengine.pathfinding
@@ -25,18 +26,13 @@ import ext.mods.Config
 import ext.mods.commons.util.PriorityQueueSet
 import ext.mods.gameserver.geoengine.GeoEngine
 import ext.mods.gameserver.geoengine.PeaceZoneCollisionManager
-import ext.mods.gameserver.geoengine.geodata.ABlock
 import ext.mods.gameserver.geoengine.geodata.GeoStructure
 import ext.mods.gameserver.model.actor.Creature
-import ext.mods.gameserver.model.actor.Playable
 import ext.mods.gameserver.model.location.Location
 import ext.mods.gameserver.network.serverpackets.ExServerPrimitive
 import java.awt.Color
 import java.util.LinkedList
 import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 class PathFinder {
     private val _opened = PriorityQueueSet<Node>()
     private val _closed = HashSet<Node>()
@@ -68,7 +64,7 @@ class PathFinder {
             return findPathLegacy(gox, goy, goz, gtx, gty, gtz, debug)
         }
         if (PeaceZoneCollisionManager.canIgnoreCreatureCollision(creature)) {
-            return findSimplifiedPath(gox, goy, goz, gtx, gty, gtz, debug)
+            return findSimplifiedPath(creature, gox, goy, goz, gtx, gty, gtz, debug)
         }
         val rawPath = findPathLegacy(gox, goy, goz, gtx, gty, gtz, debug)
         
@@ -78,81 +74,28 @@ class PathFinder {
         return applyPathOptimizations(rawPath, creature, debug)
     }
     
+    private fun checkWalkable(ox: Int, oy: Int, oz: Int, tx: Int, ty: Int, tz: Int, creature: Creature?): Boolean {
+        val radius = creature?.collisionRadius ?: 0.0
+        return if (radius > 0.0) {
+            _geoEngine.canMoveWithCollisionBox(ox, oy, oz, tx, ty, tz, radius, null)
+        } else {
+            _geoEngine.canMoveToTarget(ox, oy, oz, tx, ty, tz)
+        }
+    }
+    
     private fun findSimplifiedPath(
+        creature: Creature?,
         gox: Int, goy: Int, goz: Int,
         gtx: Int, gty: Int, gtz: Int,
         debug: ExServerPrimitive?
     ): List<Location> {
-        if (_geoEngine.canMove(gox, goy, goz, gtx, gty, gtz, debug)) {
+        if (checkWalkable(gox, goy, goz, gtx, gty, gtz, creature)) {
             if (debug != null) {
                 debug.addLine("Simplified Path (Direct)", Color.CYAN, true, gox, goy, goz, gtx, gty, gtz)
             }
             return listOf(Location(gtx, gty, gtz))
         }
-        
         return findPathLegacy(gox, goy, goz, gtx, gty, gtz, debug)
-    }
-    
-    private fun findPathWithCollisionBox(
-        creature: Creature,
-        gox: Int, goy: Int, goz: Int,
-        gtx: Int, gty: Int, gtz: Int,
-        debug: ExServerPrimitive?
-    ): List<Location> {
-        val collisionRadius = creature.collisionRadius
-        if (_geoEngine.canMoveWithCollisionBox(gox, goy, goz, gtx, gty, gtz, collisionRadius, debug)) {
-            return listOf(Location(gtx, gty, gtz))
-        }
-        val path = findPathLegacy(gox, goy, goz, gtx, gty, gtz, debug).toMutableList()
-        if (path.size < 2) return path
-        return optimizePathWithCollisionBox(path, collisionRadius, debug)
-    }
-    
-    private fun optimizePathWithCollisionBox(
-        path: MutableList<Location>,
-        collisionRadius: Double,
-        debug: ExServerPrimitive?
-    ): List<Location> {
-        if (path.size < 3) return path
-        val optimized = mutableListOf<Location>()
-        optimized.add(path[0])
-        var nodeA = path[0]
-        var nodeBIndex = 1
-        while (nodeBIndex < path.size) {
-            val nodeB = path[nodeBIndex]
-            var farthestIndex = nodeBIndex
-            for (i in nodeBIndex + 1 until path.size) {
-                val nodeC = path[i]
-                
-                if (_geoEngine.canMoveWithCollisionBox(
-                    nodeA.x, nodeA.y, nodeA.z,
-                    nodeC.x, nodeC.y, nodeC.z,
-                    collisionRadius, null
-                )) {
-                    farthestIndex = i
-                } else {
-                    break
-                }
-            }
-            if (farthestIndex > nodeBIndex) {
-                optimized.add(path[farthestIndex])
-                nodeA = path[farthestIndex]
-                nodeBIndex = farthestIndex + 1
-                
-                if (debug != null && nodeBIndex <= path.size) {
-                    debug.addPoint(Color.RED, nodeB.x, nodeB.y, nodeB.z)
-                }
-            } else {
-                optimized.add(nodeB)
-                nodeA = nodeB
-                nodeBIndex++
-                
-                if (debug != null) {
-                    debug.addPoint(Color.GREEN, nodeB.x, nodeB.y, nodeB.z)
-                }
-            }
-        }
-        return optimized
     }
     
     private fun applyPathOptimizations(
@@ -163,7 +106,7 @@ class PathFinder {
         if (path.size < 2) return path
         val smoothed = smoothPath(path, creature, debug)
         if (Config.ENABLE_PATH_SMOOTHING && smoothed.size >= 3) {
-            return applyCurveInterpolation(smoothed, debug)
+            return applyCurveInterpolation(smoothed, creature, debug)
         }
         return smoothed
     }
@@ -184,10 +127,8 @@ class PathFinder {
                 val target = path[i]
                 val heightDiff = abs(target.z - current.z)
                 if (heightDiff > 150) break
-                if (_geoEngine.canMoveToTarget(
-                    current.x, current.y, current.z,
-                    target.x, target.y, target.z
-                )) {
+                
+                if (checkWalkable(current.x, current.y, current.z, target.x, target.y, target.z, creature)) {
                     farthestIndex = i
                 } else {
                     break
@@ -206,6 +147,7 @@ class PathFinder {
     
     private fun applyCurveInterpolation(
         path: List<Location>,
+        creature: Creature?,
         debug: ExServerPrimitive?
     ): List<Location> {
         if (path.size < 3) return path
@@ -224,12 +166,8 @@ class PathFinder {
                 val t = j.toDouble() / stepsDouble
                 val interpolatedPoint = catmullRomSpline(p0, p1, p2, p3, t)
                 
-                if (_geoEngine.canMoveToTarget(
-                    p1.x, p1.y, p1.z,
-                    interpolatedPoint.x, interpolatedPoint.y, interpolatedPoint.z
-                )) {
+                if (checkWalkable(p1.x, p1.y, p1.z, interpolatedPoint.x, interpolatedPoint.y, interpolatedPoint.z, creature)) {
                     interpolated.add(interpolatedPoint)
-                    
                     if (debug != null) {
                         debug.addPoint(Color.BLUE, interpolatedPoint.x, interpolatedPoint.y, interpolatedPoint.z)
                     }
@@ -416,10 +354,10 @@ class PathFinder {
     }
     
     private fun getCostH(gx: Int, gy: Int, gz: Int): Int {
-        val dx = abs(gx - _gtx)
-        val dy = abs(gy - _gty)
-        val dz = abs(gz - _gtz) / GeoStructure.CELL_HEIGHT
+        val dx = Math.abs(gx - _gtx)
+        val dy = Math.abs(gy - _gty)
+        val dz = Math.abs(gz - _gtz) / GeoStructure.CELL_HEIGHT
         
-        return (sqrt((dx * dx + dy * dy + dz * dz).toDouble()) * Config.HEURISTIC_WEIGHT).toInt()
+        return (Math.sqrt((dx * dx + dy * dy + dz * dz).toDouble()) * Config.HEURISTIC_WEIGHT).toInt()
     }
 }
