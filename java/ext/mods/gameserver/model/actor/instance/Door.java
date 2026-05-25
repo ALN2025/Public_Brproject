@@ -11,17 +11,17 @@
 * * You should have received a copy of the GNU General Public License
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 * Our main Developers, Dhousefe-L2JBR, Agazes33, Ban-L2jDev, Warman, SrEli.
-* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo
+* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, 
+* SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
 * as a contribution for the forum L2JBrasil.com
  */
 package ext.mods.gameserver.model.actor.instance;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 
 import ext.mods.commons.pool.ThreadPool;
 import ext.mods.commons.random.Rnd;
-import ext.mods.commons.util.ArraysUtil;
 import ext.mods.extensions.listener.manager.DoorListenerManager;
 import ext.mods.gameserver.data.xml.DoorData;
 import ext.mods.gameserver.enums.DoorType;
@@ -52,19 +52,18 @@ import ext.mods.gameserver.network.serverpackets.DoorStatusUpdate;
 import ext.mods.gameserver.scripting.Quest;
 import ext.mods.gameserver.skills.L2Skill;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 public class Door extends Creature implements IGeoObject
 {
-	private static final String[] DOOR_CLAN = new String[]
-	{
-		"door_clan"
-	};
-	
 	private Residence _residence;
 	
 	private boolean _open;
 	
-	private List<Quest> _quests;
-	private List<NpcMaker> _npcMakers;
+	private ScheduledFuture<?> _autoTask;
+	
+	private ObjectArrayList<Quest> _quests;
+	private ObjectArrayList<NpcMaker> _npcMakers;
 	
 	public Door(int objectId, DoorTemplate template)
 	{
@@ -199,11 +198,31 @@ public class Door extends Creature implements IGeoObject
 			if (called.isDead())
 				return;
 			
-			if (!ArraysUtil.contains(DOOR_CLAN, called.getTemplate().getClans()))
+			final String[] clans = called.getTemplate().getClans();
+			if (clans == null || clans.length == 0)
 				return;
 			
-			for (Quest quest : called.getTemplate().getEventQuests(EventHandler.STATIC_OBJECT_CLAN_ATTACKED))
-				quest.onStaticObjectClanAttacked(this, called, attacker, (int) damage, skill);
+			boolean isDoorClan = false;
+			for (int i = 0; i < clans.length; i++)
+			{
+				if ("door_clan".equals(clans[i]))
+				{
+					isDoorClan = true;
+					break;
+				}
+			}
+			
+			if (!isDoorClan)
+				return;
+			
+			final List<Quest> eventQuests = called.getTemplate().getEventQuests(EventHandler.STATIC_OBJECT_CLAN_ATTACKED);
+			if (eventQuests != null && !eventQuests.isEmpty())
+			{
+				for (int i = 0, size = eventQuests.size(); i < size; i++)
+				{
+					eventQuests.get(i).onStaticObjectClanAttacked(this, called, attacker, (int) damage, skill);
+				}
+			}
 		});
 	}
 	
@@ -231,6 +250,12 @@ public class Door extends Creature implements IGeoObject
 		
 		if (_residence instanceof Castle castle && castle.getSiege().isInProgress())
 			castle.getSiege().announce((isWall()) ? SystemMessageId.CASTLE_WALL_DAMAGED : SystemMessageId.CASTLE_GATE_BROKEN_DOWN, SiegeSide.DEFENDER);
+		
+		if (_autoTask != null)
+		{
+			_autoTask.cancel(false);
+			_autoTask = null;
+		}
 		
 		return true;
 	}
@@ -367,6 +392,12 @@ public class Door extends Creature implements IGeoObject
 		if (isDead() || _open == open)
 			return;
 		
+		if (_autoTask != null)
+		{
+			_autoTask.cancel(false);
+			_autoTask = null;
+		}
+		
 		_open = open;
 		if (open)
 			GeoEngine.getInstance().removeGeoObject(this);
@@ -382,17 +413,21 @@ public class Door extends Creature implements IGeoObject
 		
 		if (_quests != null)
 		{
-			for (Quest quest : _quests)
-				quest.onDoorChange(this);
+			for (int i = 0, size = _quests.size(); i < size; i++)
+			{
+				_quests.get(i).onDoorChange(this);
+			}
 		}
 		
 		if (_npcMakers != null)
 		{
-			for (NpcMaker npcMaker : _npcMakers)
+			for (int i = 0, size = _npcMakers.size(); i < size; i++)
+			{
+				final NpcMaker npcMaker = _npcMakers.get(i);
 				npcMaker.getMaker().onDoorEvent(this, npcMaker);
+			}
 		}
 		
-
 		int triggerId = getTemplate().getTriggerId();
 		if (triggerId > 0)
 		{
@@ -401,7 +436,6 @@ public class Door extends Creature implements IGeoObject
 				door.changeState(open, true);
 		}
 		
-
 		if (!triggered)
 		{
 			int time = open ? getTemplate().getCloseTime() : getTemplate().getOpenTime();
@@ -409,7 +443,9 @@ public class Door extends Creature implements IGeoObject
 				time += Rnd.get(getTemplate().getRandomTime());
 			
 			if (time > 0)
-				ThreadPool.schedule(() -> changeState(!open, false), time * 1000);
+			{
+				_autoTask = ThreadPool.schedule(() -> changeState(!open, false), time * 1000L);
+			}
 		}
 	}
 	
@@ -432,7 +468,7 @@ public class Door extends Creature implements IGeoObject
 	public void addQuestEvent(Quest quest)
 	{
 		if (_quests == null)
-			_quests = new ArrayList<>();
+			_quests = new ObjectArrayList<>(3);
 		
 		_quests.remove(quest);
 		_quests.add(quest);
@@ -447,7 +483,7 @@ public class Door extends Creature implements IGeoObject
 	public void addMakerEvent(NpcMaker npcMaker)
 	{
 		if (_npcMakers == null)
-			_npcMakers = new ArrayList<>();
+			_npcMakers = new ObjectArrayList<>(3);
 		
 		_npcMakers.remove(npcMaker);
 		_npcMakers.add(npcMaker);

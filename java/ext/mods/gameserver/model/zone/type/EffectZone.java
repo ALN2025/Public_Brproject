@@ -11,12 +11,12 @@
 * * You should have received a copy of the GNU General Public License
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 * Our main Developers, Dhousefe-L2JBR, Agazes33, Ban-L2jDev, Warman, SrEli.
-* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo
+* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, 
+* SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
 * as a contribution for the forum L2JBrasil.com
  */
 package ext.mods.gameserver.model.zone.type;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
 
@@ -31,6 +31,8 @@ import ext.mods.gameserver.model.zone.type.subtype.ZoneType;
 import ext.mods.gameserver.network.serverpackets.EtcStatusUpdate;
 import ext.mods.gameserver.skills.L2Skill;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 /**
  * A zone extending {@link ZoneType}, which fires a task on the first {@link Creature} entrance.<br>
  * <br>
@@ -38,7 +40,7 @@ import ext.mods.gameserver.skills.L2Skill;
  */
 public class EffectZone extends ZoneType
 {
-	private final List<IntIntHolder> _skills = new ArrayList<>(5);
+	private final List<IntIntHolder> _skills = new ObjectArrayList<>(5);
 	
 	private int _chance = 100;
 	private int _initialDelay = 0;
@@ -117,7 +119,9 @@ public class EffectZone extends ZoneType
 			{
 				task = _task;
 				if (task == null)
-					_task = ThreadPool.scheduleAtFixedRate(this::applyEffect, _initialDelay, _reuseDelay);
+				{
+					_task = ThreadPool.scheduleAtFixedRate(() -> ThreadPool.executeIO(this::applyEffect), _initialDelay, _reuseDelay);
+				}
 			}
 		}
 		
