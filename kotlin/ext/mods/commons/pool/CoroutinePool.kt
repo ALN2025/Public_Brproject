@@ -17,8 +17,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  * * Our main Developers: Dhousefe-L2JBR, Agazes33, Ban-L2jDev, Warman, SrEli.
- * Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, 
- * SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
+ * Our special thanks: Nattan Felipe, Diego Fonseca, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo
  * as a contribution for the forum L2JBrasil.com
  */
 package ext.mods.commons.pool
@@ -59,8 +58,8 @@ object CoroutinePool {
     
     private const val SMART_SLOW_THRESHOLD_MS: Long = 15L
     private const val SMART_FAST_THRESHOLD_MS: Long = 2L
-    var ENABLE_PROFILER = true 
-    var BOTTLENECK_THRESHOLD_MS = 50L 
+    var ENABLE_PROFILER = false 
+    var BOTTLENECK_THRESHOLD_MS = 25L 
     
     private const val DEBUG_FILE_NAME = "log/coroutine_bottlenecks.log"
     private val fileWriteLock = Any()

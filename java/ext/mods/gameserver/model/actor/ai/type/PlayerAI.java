@@ -985,7 +985,7 @@ public class PlayerAI extends PlayableAI<Player>
             {
                 if (Config.ENABLE_SMOOTH_OBSTACLE_AVOIDANCE)
                 {
-                    List<Location> smoothPath = SmoothObstacleAvoidance.getInstance().createSmoothPath(path, _actor, null);
+                    List<Location> smoothPath = SmoothObstacleAvoidance.getInstance().createSmoothPath(path, null);
                     if (smoothPath != null && !smoothPath.isEmpty())
                     {
                         path = smoothPath;
