@@ -11,7 +11,8 @@
 * * You should have received a copy of the GNU General Public License
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 * Our main Developers, Dhousefe-L2JBR, Agazes33, Ban-L2jDev, Warman, SrEli.
-* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo
+* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, 
+* SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
 * as a contribution for the forum L2JBrasil.com
  */
 package ext.mods.gameserver.network;
@@ -133,13 +134,16 @@ public final class GameClient extends MMOClient<MMOConnection<GameClient>> imple
 		
 		_autoSaveInDB = ThreadPool.scheduleAtFixedRate(() ->
 		{
-			if (getPlayer() != null && getPlayer().isOnline())
+			ThreadPool.executeIO(() -> 
 			{
-				getPlayer().store();
-				
-				if (getPlayer().getSummon() != null)
-					getPlayer().getSummon().store();
-			}
+				if (getPlayer() != null && getPlayer().isOnline())
+				{
+					getPlayer().store();
+					
+					if (getPlayer().getSummon() != null)
+						getPlayer().getSummon().store();
+				}
+			});
 		}, 300000L, 900000L);
 	}
 	
@@ -232,7 +236,7 @@ public final class GameClient extends MMOClient<MMOConnection<GameClient>> imple
 	{
 		try
 		{
-			ThreadPool.execute(() ->
+			ThreadPool.executeIO(() ->
 			{
 				boolean fast = true;
 				final Player player = getPlayer();
@@ -416,10 +420,10 @@ public final class GameClient extends MMOClient<MMOConnection<GameClient>> imple
 	 * Method to handle character deletion
 	 * @param slot The slot to check.
 	 * @return a byte:
-	 *         <li>-1: Error: No char was found for such charslot, caught exception, etc...
-	 *         <li>0: character is not member of any clan, proceed with deletion
-	 *         <li>1: character is member of a clan, but not clan leader
-	 *         <li>2: character is clan leader
+	 * <li>-1: Error: No char was found for such charslot, caught exception, etc...
+	 * <li>0: character is not member of any clan, proceed with deletion
+	 * <li>1: character is member of a clan, but not clan leader
+	 * <li>2: character is clan leader
 	 */
 	public byte markToDeleteChar(int slot)
 	{
@@ -709,13 +713,13 @@ public final class GameClient extends MMOClient<MMOConnection<GameClient>> imple
 			_cleanupTask = null;
 		}
 		
-		ThreadPool.schedule(new CleanupTask(), 0);
+		ThreadPool.scheduleIO(new CleanupTask(), 0);
 	}
 	
 	public synchronized void cleanMe(boolean fast)
 	{
 		if (_cleanupTask == null)
-			_cleanupTask = ThreadPool.schedule(new CleanupTask(), fast ? 100 : 15000);
+			_cleanupTask = ThreadPool.scheduleIO(new CleanupTask(), fast ? 100 : 15000);
 	}
 	
 	protected class CleanupTask implements Runnable
@@ -836,7 +840,7 @@ public final class GameClient extends MMOClient<MMOConnection<GameClient>> imple
 				return;
 			}
 			
-			ThreadPool.execute(this);
+			ThreadPool.executeIO(this);
 		}
 		catch (RejectedExecutionException e)
 		{
