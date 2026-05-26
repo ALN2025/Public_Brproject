@@ -399,12 +399,12 @@ class GameServer : Runnable {
         val totalTime = measureTimeMillis {
             LoadMetricsService.record("Config & Pools", measureTimeMillis { loadConfigAndPools() })
             listOf(
-                async(Dispatchers.IO) { "World & Cache" to measureTimeMillis { loadWorldAndCache() } },
-                async(Dispatchers.IO) { "IdFactory" to measureTimeMillis { loadIdFactory() } }
+                async(Dispatchers.Default) { "World & Cache" to measureTimeMillis { loadWorldAndCache() } },
+                async(Dispatchers.Default) { "IdFactory" to measureTimeMillis { loadIdFactory() } }
             ).awaitAll().forEach { (name, ms) -> LoadMetricsService.record(name, ms) }
             listOf(
-                async(Dispatchers.IO) { "Skills" to measureTimeMillis { loadSkills() } },
-                async(Dispatchers.IO) { "Items (massive)" to measureTimeMillis { loadItemsMassive() } },
+                async(Dispatchers.Default) { "Skills" to measureTimeMillis { loadSkills() } },
+                async(Dispatchers.Default) { "Items (massive)" to measureTimeMillis { loadItemsMassive() } },
                 async(Dispatchers.IO) { "Admins & Chars" to measureTimeMillis { loadAdminsCharacters() } }
             ).awaitAll().forEach { (name, ms) -> LoadMetricsService.record(name, ms) }
             listOf(
@@ -547,7 +547,7 @@ class GameServer : Runnable {
     }
     
     private fun scheduleDeferredDoorsCastlesTasks() {
-        ThreadPool.execute {
+        ThreadPool.executeParallel {
             try {
                 val ms = measureTimeMillis { loadDoorsCastlesTasks(quiet = true) }
                 doorsCastlesTasksReady.set(true)
@@ -621,7 +621,7 @@ class GameServer : Runnable {
     }
     private fun loadCustomMods() {
         customMods()
-        //CryptaManager.initialize()
+        
     }
     private fun loadHandlers() {
         LOGGER.info("Loaded ${AdminCommandHandler.getInstance().size()} admin handlers.")
@@ -635,7 +635,7 @@ class GameServer : Runnable {
     }
     
     private fun scheduleDeferredNpcsSpawns() {
-        ThreadPool.execute {
+        ThreadPool.executeParallel {
             try {
                 doorsCastlesTasksLatch.await(120, TimeUnit.SECONDS)
                 val ms = measureTimeMillis { loadNpcsSpawns(quiet = true) }
