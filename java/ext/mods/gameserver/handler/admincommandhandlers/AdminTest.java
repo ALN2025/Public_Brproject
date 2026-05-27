@@ -11,7 +11,8 @@
 * * You should have received a copy of the GNU General Public License
 * along with this program. If not, see <http://www.gnu.org/licenses/>.
 * Our main Developers, Dhousefe-L2JBR, Agazes33, Ban-L2jDev, Warman, SrEli.
-* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo
+* Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, 
+* SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
 * as a contribution for the forum L2JBrasil.com
  */
 package ext.mods.gameserver.handler.admincommandhandlers;
@@ -97,7 +98,7 @@ public class AdminTest implements IAdminCommandHandler
 									player.sendMessage(targetPlayer.getName() + "'s " + quest.getName() + " quest condition set to " + cond);
 								}
 								else
-									player.sendMessage(targetPlayer.getName() + "'s " + quest.getName() + " quest has been created. To start it, use //test startquest <questId> <cond>");
+									player.sendMessage(targetPlayer.getName() + "'s " + quest.getName() + " quest has been created. To start it, use
 							}
 							else
 								player.sendMessage("Invalid command format. Use //test setquest <questId> <cond>");

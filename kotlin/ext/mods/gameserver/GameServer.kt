@@ -17,7 +17,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  * * Our main Developers: Dhousefe-L2JBR, Agazes33, Ban-L2jDev, Warman, SrEli.
- * Our special thanks: Nattan Felipe, Diego Fonseca, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo
+ * Our special thanks, Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Localhost, MundvayneHELLBOY, 
+ * SonecaL2, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
  * as a contribution for the forum L2JBrasil.com
  */
 package ext.mods.gameserver
@@ -179,7 +180,6 @@ import ext.mods.sellBuffEngine.BuffShopConfigs
 import ext.mods.sellBuffEngine.BuffShopManager
 import ext.mods.summonmobitem.SummonMobItemData
 import ext.mods.tour.TourData
-//import ext.mods.util.CryptaManager
 import ext.mods.Crypta.BattleBossData
 import ext.mods.Crypta.AgathionData
 import ext.mods.Crypta.RandomManager
@@ -288,7 +288,6 @@ class GameServer : Runnable {
             DonateData.getInstance()
             MissionData.getInstance()
             PvPData.getInstance()
-            //CryptaManager.executeMethod("AgathionData", "getInstance")
             AgathionData.getInstance()
             PolymorphData.getInstance()
             RaidDropAnnounceData.getInstance()
@@ -318,7 +317,6 @@ class GameServer : Runnable {
                 LOGGER.error("Failed to initialize Buff Shop System: " + e.message)
             }
             QuestData.getInstance()
-            //CryptaManager.executeMethod("BattleBossData", "getInstance")
             BattleBossData.getInstance()
             BattleBossCountDownTask.getInstance().start()
             StringUtil.printSection("[Brproject Ext Mods]")
