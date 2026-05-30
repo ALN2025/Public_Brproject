@@ -41,7 +41,7 @@ import ext.mods.gameserver.taskmanager.AttackStanceTaskManager;
  * AI behavior is then affected by potential {@link AiEventType}s, or by own AI type.
  * @param <T> : The {@link Creature} used as actor.
  */
-abstract class AbstractAI<T extends Creature>
+public abstract class AbstractAI<T extends Creature>
 {
 	protected final T _actor;
 	

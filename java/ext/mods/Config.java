@@ -460,6 +460,8 @@ public final class Config
 	public static String[] SPAWN_EVENTS;
 	
 	/** Champion Mod */
+
+	public static int MONSTER_MAX_RANGE;
 	public static int CHAMPION_FREQUENCY;
 	public static int CHAMP_MIN_LVL;
 	public static int CHAMP_MAX_LVL;
@@ -2292,6 +2294,7 @@ public final class Config
 			"start_weapon",
 		});
 		
+		MONSTER_MAX_RANGE = npcs.getProperty("MonsterMaxRange", 125);
 		CHAMPION_FREQUENCY = npcs.getProperty("ChampionFrequency", 0);
 		CHAMP_MIN_LVL = npcs.getProperty("ChampionMinLevel", 20);
 		CHAMP_MAX_LVL = npcs.getProperty("ChampionMaxLevel", 70);

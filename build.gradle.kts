@@ -120,6 +120,12 @@ dependencies {
     
     // Fast Collections (FastUtil)
     implementation("it.unimi.dsi:fastutil-core:8.5.18")
+	
+	implementation("io.netty:netty-all:4.1.107.Final")
+	
+	implementation("com.lmax:disruptor:3.4.4")
+	
+	
     
     
     

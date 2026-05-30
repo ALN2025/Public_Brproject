@@ -41,6 +41,7 @@ import ext.mods.gameserver.enums.items.ItemLocation;
 import ext.mods.gameserver.geoengine.GeoEngine;
 import ext.mods.gameserver.model.World;
 import ext.mods.gameserver.model.WorldObject;
+import ext.mods.gameserver.model.actor.Attackable;
 import ext.mods.gameserver.model.actor.Creature;
 import ext.mods.gameserver.model.actor.Npc;
 import ext.mods.gameserver.model.actor.Playable;
@@ -109,8 +110,24 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
         }
 
         final Creature target = _currentIntention.getFinalTarget();
-        if (target == null || target.isAlikeDead()) {
+
+        if (target == null || target.isAlikeDead() || !target.isVisible()) {
+            if (_actor instanceof Attackable attackable) {
+                attackable.getAI().getAggroList().cleanAllHate();
+                attackable.returnHome();
+            }
             doIdleIntention();
+            
+            return;
+        }
+
+        if (_actor.distance3D(target) > 2000) {
+            if (_actor instanceof Attackable attackable) {
+                attackable.getAI().getAggroList().cleanAllHate();
+                attackable.returnHome();
+            }
+            doIdleIntention();
+            
             return;
         }
         
@@ -119,13 +136,27 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
         if (!_actor.knows(target)) {
             if (_actor instanceof Npc npc) {
                 final int aggroRange = npc.getTemplate().getAggroRange() > 0 ? npc.getTemplate().getAggroRange() : npc.getSeeRange();
+                
                 if (_actor.isIn3DRadius(target, aggroRange + 100)) {
+                    
+                    if (!GeoEngine.getInstance().canSeeTarget(_actor, target)) {
+                        if (_actor instanceof Attackable attackable) {
+                            attackable.getAI().getAggroList().cleanAllHate();
+                            attackable.returnHome();
+                        }
+                        doIdleIntention();
+                        
+                        return;
+                    }
+
                     _actor.refreshKnownlist();
                     _actor.getMove().maybeStartOffensiveFollow(target, weaponRange);
+                    
                     if (Config.DEBUG_MELEE_ATTACK && weaponRange <= 200) {
-                        LOGGER.info("[MeleeDebug] thinkAttack: refreshKnownlist npc={} target={} dist={}", _actor.getObjectId(), target.getObjectId(), _actor.distance2D(target));
+                        LOGGER.info("[MeleeDebug] thinkAttack: refreshKnownlist npc={} target={} dist={}", _actor.getObjectId(), target.getObjectId(), _actor.distance3D(target));
                     }
-                    ThreadPool.schedule(() -> notifyEvent(AiEventType.THINK, null, null), 100);
+                    
+                    ThreadPool.scheduleIO(() -> notifyEvent(AiEventType.THINK, null, null), 100);
                     return;
                 }
             }
@@ -133,9 +164,11 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
                 LOGGER.info("[MeleeDebug] thinkAttack: lostKnownlist npc={} target={}", _actor.getObjectId(), target.getObjectId());
             }
             doIdleIntention();
+            
+
             return;
         }
-        int actorCol = (int) _actor.getCollisionRadius();
+        /*int actorCol = (int) _actor.getCollisionRadius();
         int targetCol = (int) target.getCollisionRadius();
         
         int totalRange = weaponRange + actorCol + targetCol;
@@ -151,7 +184,46 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
                 LOGGER.info("[MeleeDebug] thinkAttack: startFollow npc={} target={} dist={}", _actor.getObjectId(), target.getObjectId(), dist);
             }
             return;
-        } 
+        } */
+        int actorCol = (int) _actor.getCollisionRadius();
+        int targetCol = (int) target.getCollisionRadius();
+        
+        int totalRange = weaponRange + actorCol + targetCol;
+        double dist = _actor.distance3D(target);
+        
+
+        double attackMargin = Config.MONSTER_MAX_RANGE;
+        double maxAttackRange = totalRange + attackMargin;
+        boolean inRange = dist <= maxAttackRange;
+
+        if (Config.DEBUG_MELEE_ATTACK && weaponRange <= 200) {
+            LOGGER.info("[MeleeDebug] thinkAttack: npc={} target={} dist={} maxRange={} moving={} intention={}", _actor.getObjectId(), target.getObjectId(), dist, maxAttackRange, _actor.isMoving(), _currentIntention.getType());
+        }
+        
+        if (!inRange) {
+            for (Creature blocker : _actor.getKnownTypeInRadius(Creature.class, (int) dist)) {
+                if (!(blocker instanceof Npc) || blocker == _actor || blocker == target || blocker.isDead()) continue;
+
+                double distToBlocker = _actor.distance3D(blocker);
+                double blockerToTarget = blocker.distance3D(target);
+
+                if (Math.abs((distToBlocker + blockerToTarget) - dist) < 35.0) {
+                    double adjustedRange = maxAttackRange + (blocker.getCollisionRadius() * 2.0);
+                    if (dist <= adjustedRange) {
+                        inRange = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!inRange) {
+            _actor.getMove().maybeStartOffensiveFollow(target, weaponRange);
+            if (Config.DEBUG_MELEE_ATTACK && weaponRange <= 200) {
+                LOGGER.info("[MeleeDebug] thinkAttack: startFollow npc={} target={} dist={}", _actor.getObjectId(), target.getObjectId(), dist);
+            }
+            return;
+        }       
         
         if (_actor.getAttack().isAttackingNow() || _actor.getAttack().isBowCoolingDown()) {
             if (Config.DEBUG_MELEE_ATTACK && weaponRange <= 200) {
@@ -159,10 +231,7 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
             }
             return;
         }
-        
-        if (weaponRange <= 200 && _actor.getMove() instanceof NpcMove npcMove) {
-        }
-        
+
         
         if (weaponRange <= 200 && !_actor.getAllSkillsDisabled() && !_actor.getCast().isCastingNow() && Rnd.get(100) < 30) {
             final L2Skill skill = selectMeleeSkill();
@@ -296,15 +365,27 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
     public void stopFollow() {
         if (_currentIntention.getType() == IntentionType.ATTACK) {
             final Creature target = _currentIntention.getFinalTarget();
-            if (target != null && !target.isAlikeDead() && _actor instanceof Npc npc) {
+            
+            if (target != null && !target.isAlikeDead() && target.isVisible() && _actor instanceof Npc npc) {
+                
                 final int aggroRange = npc.getTemplate().getAggroRange() > 0 ? npc.getTemplate().getAggroRange() : npc.getSeeRange();
+                
                 if (_actor.isIn3DRadius(target, aggroRange + 100)) {
-                    ThreadPool.schedule(() -> notifyEvent(AiEventType.THINK, null, null), 100);
-                    return;
+                    
+                    if (GeoEngine.getInstance().canSeeTarget(_actor, target)) {
+                        ThreadPool.schedule(() -> notifyEvent(AiEventType.THINK, null, null), 100);
+                        return;
+                    }
                 }
             }
         }
-        doIdleIntention();
+        
+        if (_actor instanceof Attackable attackable) {
+            attackable.getAI().getAggroList().cleanAllHate();
+            attackable.returnHome();
+        }
+        
+        doIdleIntention(); 
     }
 
 
@@ -353,7 +434,6 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
         }
         
         if (_actor.getMove().getGeoPathFailCount() >= 10) {
-            _actor.teleportTo(target.getPosition(), 10);
             return;
         }
         
@@ -558,30 +638,42 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
         {
             final List<Quest> scripts = _actor.getTemplate().getEventQuests(EventHandler.SEE_CREATURE);
             if (!scripts.isEmpty()) {
-                _actor.forEachKnownType(Playable.class, pl -> {
+                
+                for (Playable pl : _actor.getKnownType(Playable.class)) {
+                    
                     if (Config.MOB_AGGRO_IN_PEACEZONE && _actor instanceof Monster monster && monster.getTemplate().getAggro() && pl.isInsideZone(ZoneId.PEACE)) {
                         monster.abortAll(true);
                         monster.removeAllAttackDesire();
                         monster.teleportTo(monster.getSpawnLocation(), 0);
-                        return;
+                        continue; 
                     }
+                    
                     final Player player = pl.getActingPlayer();
-                    if (player.isSpawnProtected() || player.isFlying() || !player.getAppearance().isVisible()) return;
+                    if (player == null || player.isSpawnProtected() || player.isFlying() || !player.getAppearance().isVisible()) {
+                        continue;
+                    }
                     
                     final boolean isInRange = _actor.isIn3DRadius(pl, _actor.getSeeRange());
+                    
                     if (!_actor.isRaidBoss() && _seenCreatures.contains(pl)) {
-                        if (_actor instanceof Guard) _seenCreatures.remove(pl);
-                        else if (!isInRange) _seenCreatures.remove(pl);
+                        if (_actor instanceof Guard) {
+                            _seenCreatures.remove(pl);
+                        } else if (!isInRange) {
+                            _seenCreatures.remove(pl);
+                        }
                     } else if (_actor.isRaidBoss() && isInRange && Math.abs(pl.getZ() - _actor.getZ()) <= 500) {
                         if (pl.isMoving() || _actor.isMoving()) {
                             for (Quest quest : scripts) quest.onSeeCreature(_actor, pl);
                         }
                     } else if (isInRange) {
-                        if (pl.isSilentMoving() && !_actor.getTemplate().canSeeThrough()) return;
+                        if (pl.isSilentMoving() && !_actor.getTemplate().canSeeThrough()) {
+                            continue;
+                        }
+                        
                         _seenCreatures.add(pl);
                         for (Quest quest : scripts) quest.onSeeCreature(_actor, pl);
                     }
-                });
+                }
             }
         }
         

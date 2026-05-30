@@ -392,6 +392,7 @@ open class CreatureMove<T : Creature>(
     
         if (moveSpeed * moveSpeed >= distSq) {
             val finalZ = if (type == MoveType.GROUND) _cachedDestinationZ else _destination.z
+            
             if (handleNextPosition(_destination.x, _destination.y, finalZ, type)) {
                 return checkArrival(type)
             }
@@ -424,12 +425,15 @@ open class CreatureMove<T : Creature>(
             val timeSinceLastSync = now - _lastMoveRequestTime
             
             val driftSq: Double = (_separationForceX * _separationForceX) + (_separationForceY * _separationForceY)
-            val shouldSync = (driftSq > 225.0 && timeSinceLastSync > 200L) || (timeSinceLastSync > 500L)
             
-            if (shouldSync) {
+            if (driftSq > 400.0 && timeSinceLastSync > 300L) {
                 _lastMoveRequestTime = now
                 _actor.position.setHeadingTo(_destination) 
                 _actor.broadcastPacket(MoveToLocation(_actor, _destination))
+            } 
+            else if (timeSinceLastSync > 500L) {
+                _lastMoveRequestTime = now
+                _actor.broadcastPacket(ValidateLocation(_actor))
             }
     
             return false
@@ -441,6 +445,7 @@ open class CreatureMove<T : Creature>(
         _blocked = true
         return true
     }
+    
     private fun calculateRepulsion() {
         _separationForceX = 0.0
         _separationForceY = 0.0

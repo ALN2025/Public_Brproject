@@ -39,7 +39,7 @@ import ext.mods.gameserver.skills.basefuncs.FuncMul
 import java.util.concurrent.ThreadLocalRandom
 import kotlin.math.abs
 import kotlin.math.sqrt
-class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
+public class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
     companion object {
         private val LOGGER = CLogger(NpcMove::class.java.name)
     }
@@ -48,6 +48,7 @@ class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
     private var frontSlowApplied = false
     override fun offensiveFollowTask(target: Creature, offset: Int) {
         val currentTask = _followTask
+        
         if (currentTask == null || currentTask.isCancelled || target.isAlikeDead) {
             clearFrontSlow()
             cancelFollowTask()
@@ -70,7 +71,7 @@ class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
             return
         }
         val targetLoc = target.position
-        val dist = _actor.distance2D(targetLoc)
+        val dist = _actor.distance3D(targetLoc)
         
         if (applySoftRepulsion(target)) {
             return
@@ -98,114 +99,130 @@ class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
         } else {
             offset
         }
+        
         val totalRange = layeredOffset + _actor.collisionRadius + target.collisionRadius
+        
         if (offset <= 100 && tryRouteDeviationForFrontBlocker(target, offset)) {
             return
         }
         
         updateFrontSlow(target, offset)
         
-        if (dist <= totalRange) {
+        val attackMargin = Config.MONSTER_MAX_RANGE
+        val minSafeRange = (totalRange - attackMargin).coerceAtLeast(0.0)
+        var maxSafeRange = totalRange + attackMargin
+        
+        if (dist > maxSafeRange) {
+            val blockers = _actor.getKnownTypeInRadius(Creature::class.java, dist.toInt())
+            for (blocker in blockers) {
+                if (blocker !is Npc || blocker == _actor || blocker == target || blocker.isAlikeDead) continue
+                val distToBlocker = _actor.distance3D(blocker)
+                val blockerToTarget = blocker.distance3D(target)
+                if (Math.abs((distToBlocker + blockerToTarget) - dist) < 35.0) {
+                    val adjustedRange = maxSafeRange + (blocker.collisionRadius * 2.0)
+                    if (dist <= adjustedRange) {
+                        maxSafeRange = adjustedRange
+                        break
+                    }
+                }
+            }
+        }
+        if (dist in minSafeRange..maxSafeRange) {
             _actor.position.setHeadingTo(targetLoc)
             
             if (offset <= 200) {
                 if (Config.DEBUG_MELEE_ATTACK) {
-                    LOGGER.info("[MeleeDebug] follow: meleeArrived npc={} target={} dist={} range={}", _actor.objectId, target.objectId, dist, totalRange)
+                    LOGGER.info("[MeleeDebug] follow: meleeArrived npc={} target={} dist={} range={}", 
+                        _actor.objectId, target.objectId, dist, totalRange)
                 }
                 clearFrontSlow()
                 stop()
+                
+                val ai = _actor.ai
+                if (ai is NpcAI<*>) {
+                    ai.notifyEvent(AiEventType.ARRIVED, null, null)
+                } else {
+                    ai.notifyEvent(AiEventType.THINK, null, null)
+                }
                 return
             }
             
-            if (abs(_separationForceX) < 0.1 && abs(_separationForceY) < 0.1) {
+            if (Math.abs(_separationForceX) < 0.1 && Math.abs(_separationForceY) < 0.1) {
                 stop()
+                val ai = _actor.ai
+                if (ai is NpcAI<*>) {
+                    ai.notifyEvent(AiEventType.ARRIVED, null, null)
+                } else {
+                    ai.notifyEvent(AiEventType.THINK, null, null)
+                }
                 return
             }
         }
-        if (dist > totalRange || wouldCollideInPath(targetLoc)) {
+        
+        val isBlocked = wouldCollideInPath(targetLoc)
+        if (dist > maxSafeRange || isBlocked) {
             val bestSlot = findBestAttackSlot(target, offset)
             
             if (bestSlot != null) {
-                if (_destination.distance2D(bestSlot) > 25) {
-                    moveToLocation(bestSlot, dist > 300)
+                if (_destination.distance3D(bestSlot) > 25) {
+                    val usePathfinding = isBlocked || dist > 300
+                    moveToLocation(bestSlot, usePathfinding)
+                    return
+                }
+            } else {
+                if (isBlocked) {
+                    moveToLocation(targetLoc, true)
                     return
                 }
             }
         }
-        if (dist > totalRange + 300) {
+        
+        if (dist > maxSafeRange) {
             moveToLocation(targetLoc, true)
             return
-        } 
+        }
         
-        super.offensiveFollowTask(target, offset)
     }
     
-    fun maintainMeleeSpacing(target: Creature, offset: Int): Boolean {
-        if (offset > 200 || _actor.isMovementDisabled) {
-            return false
-        }
-        
-        val targetLoc = target.position
-        val dist = _actor.distance2D(targetLoc)
-        val totalRange = offset + _actor.collisionRadius + target.collisionRadius
-        if (dist > totalRange) {
-            return false
-        }
-        
-        val collisionGap = 60.0
-        val neighbors = _actor.getKnownTypeInRadius(Creature::class.java, 150)
-        val crowded = neighbors.any { other ->
-            other != _actor && other != target && !other.isAlikeDead &&
-                other.distance2D(_actor) < (other.collisionRadius + _actor.collisionRadius + collisionGap)
-        }
-        
-        val nearest = neighbors
-            .filter { other -> other != _actor && other != target && !other.isAlikeDead }
-            .minByOrNull { other -> other.distance2D(_actor) }
-        if (nearest != null) {
-            val minDist = _actor.collisionRadius + nearest.collisionRadius + 20.0
-            val curDist = nearest.distance2D(_actor)
-            if (curDist > 0 && curDist < minDist) {
-                val dx = (_actor.x - nearest.x).toDouble()
-                val dy = (_actor.y - nearest.y).toDouble()
-                val step = 20.0
-                val nx = _actor.x + ((dx / curDist) * step)
-                val ny = _actor.y + ((dy / curDist) * step)
-                val nz = _actor.z
-                moveToLocation(Location(nx.toInt(), ny.toInt(), nz), false)
-                return true
-            }
-        }
-        
-        if (!crowded && !wouldCollideInPath(targetLoc)) {
-            return false
-        }
-        
-        val bestSlot = findBestAttackSlot(target, offset) ?: return false
-        if (_destination.distance2D(bestSlot) > 25) {
-            moveToLocation(bestSlot, false)
-            return true
-        }
-        return false
-    }
     private fun applySoftRepulsion(target: Creature): Boolean {
         val neighbors = _actor.getKnownTypeInRadius(Creature::class.java, 120)
-        val nearest = neighbors
-            .filter { other -> other != _actor && other != target && !other.isAlikeDead }
-            .minByOrNull { other -> other.distance2D(_actor) } ?: return false
-        
-        val minDist = _actor.collisionRadius + nearest.collisionRadius + 15.0
-        val curDist = nearest.distance2D(_actor)
-        if (curDist > 0 && curDist < minDist) {
-            val dx = (_actor.x - nearest.x).toDouble()
-            val dy = (_actor.y - nearest.y).toDouble()
-            val step = 15.0
-            val nx = _actor.x + ((dx / curDist) * step)
-            val ny = _actor.y + ((dy / curDist) * step)
+        if (neighbors.isNullOrEmpty()) return false
+    
+        var totalPushX = 0.0
+        var totalPushY = 0.0
+        var needsMovement = false
+    
+        for (other in neighbors) {
+            if (other == _actor || other == target || other.isAlikeDead) continue
+    
+            val curDist = other.distance3D(_actor)
+            val minDist = _actor.collisionRadius + other.collisionRadius + 15.0
+    
+            if (curDist > 0 && curDist < minDist) {
+                
+                val overlap = minDist - curDist
+                
+                val dx = (_actor.x - other.x).toDouble()
+                val dy = (_actor.y - other.y).toDouble()
+                
+                val pushForce = overlap * 0.5
+                
+                totalPushX += (dx / curDist) * pushForce
+                totalPushY += (dy / curDist) * pushForce
+                
+                needsMovement = true
+            }
+        }
+    
+        if (needsMovement) {
+            val nx = _actor.x + totalPushX
+            val ny = _actor.y + totalPushY
             val nz = _actor.z
+    
             moveToLocation(Location(nx.toInt(), ny.toInt(), nz), false)
             return true
         }
+    
         return false
     }
     
@@ -235,11 +252,21 @@ class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
         if (!hasFrontBlocker(target)) {
             return false
         }
+    
         val bestSlot = findBestAttackSlot(target, offset) ?: return false
-        if (_destination.distance2D(bestSlot) > 25) {
-            moveToLocation(bestSlot, false)
+        
+        val nx = bestSlot.x
+        val ny = bestSlot.y
+        
+        val nz = target.z 
+        
+        val finalLocation = Location(nx, ny, nz)
+    
+        if (_destination.distance3D(finalLocation) > 25) {
+            moveToLocation(finalLocation, false)
             return true
         }
+        
         return false
     }
     
@@ -259,7 +286,7 @@ class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
             val oLen = sqrt((ox * ox + oy * oy).toDouble())
             if (oLen <= 1.0) return@any false
             val dot = (dirX * (ox / oLen)) + (dirY * (oy / oLen))
-            val closerToTarget = other.distance2D(target) < _actor.distance2D(target)
+            val closerToTarget = other.distance3D(target) < _actor.distance3D(target)
             dot > 0.7 && closerToTarget
         }
     }
@@ -308,33 +335,45 @@ class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
         }
         
         val angles = 12
-        val angleStep = 360 / angles
-        val startAngle = Math.toDegrees(Math.atan2((_actor.y - centerY).toDouble(), (_actor.x - centerX).toDouble())).toInt()
+        val angleStep = 360.0 / angles
         
+        val startAngle = Math.toDegrees(Math.atan2((_actor.y - centerY).toDouble(), (_actor.x - centerX).toDouble()))
+        
+        val searchRadius = layeredRange + 150
+        val potentialBlockers = _actor.getKnownTypeInRadius(Creature::class.java, searchRadius)
+            .filter { other -> other != _actor && other != target && !other.isAlikeDead }
+            
         var bestLoc: Location? = null
         var minScore = Double.MAX_VALUE
+        val collisionGap = 60.0
+        
         for (i in 0 until angles) {
-            val angle = Math.toRadians((startAngle + (i * angleStep)).toDouble())
+            val angleRadians = Math.toRadians(startAngle + (i * angleStep))
             
             val jitter = (_actor.objectId % 4) * 5 
-            val testX = (centerX + (layeredRange + jitter) * Math.cos(angle)).toInt()
-            val testY = (centerY + (layeredRange + jitter) * Math.sin(angle)).toInt()
+            val currentRange = layeredRange + jitter
+            
+            val testX = (centerX + currentRange * Math.cos(angleRadians)).toInt()
+            val testY = (centerY + currentRange * Math.sin(angleRadians)).toInt()
+            
             val testZ = geoEngine.getHeight(testX, testY, centerZ).toInt()
             val testLoc = Location(testX, testY, testZ)
+            
             if (!geoEngine.canMoveToTarget(_actor.x, _actor.y, _actor.z, testX, testY, testZ)) continue
-            val collisionGap = 60.0
-            val isOccupied = _actor.getKnownTypeInRadius(Creature::class.java, 150).any { other ->
-                other != _actor && other != target && !other.isAlikeDead &&
-                other.distance2D(testLoc) < (other.collisionRadius + _actor.collisionRadius + collisionGap)
+            
+            val isOccupied = potentialBlockers.any { other ->
+                other.distance3D(testLoc) < (other.collisionRadius + _actor.collisionRadius + collisionGap)
             }
             
             if (isOccupied) continue
-            val score = _actor.distance2D(testLoc)
+            
+            val score = _actor.distance3D(testLoc)
             if (score < minScore) {
                 minScore = score
                 bestLoc = testLoc
             }
         }
+        
         return bestLoc
     }
     
@@ -343,7 +382,7 @@ class NpcMove(actor: Npc) : CreatureMove<Npc>(actor) {
         return _actor.getKnownTypeInRadius(Creature::class.java, checkDist.toInt()).any { neighbor ->
             if (neighbor == _actor || neighbor == _pawn || neighbor.isAlikeDead) return@any false
             
-            _actor.distance2D(neighbor) < checkDist
+            _actor.distance3D(neighbor) < checkDist
         }
     }
     override fun handleNextPosition(nextX: Int, nextY: Int, nextZ: Int, type: MoveType): Boolean {

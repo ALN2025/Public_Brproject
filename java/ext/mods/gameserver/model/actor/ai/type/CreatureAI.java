@@ -151,7 +151,7 @@ public class CreatureAI<T extends Creature> extends AbstractAI<T>
 
 		final int attackRange = _actor.getStatus().getPhysicalAttackRange();
 		final int totalRange = (int) (attackRange + _actor.getCollisionRadius() + target.getCollisionRadius());
-		final double dist = _actor.distance2D(target);
+		final double dist = _actor.distance3D(target);
 		if (dist > totalRange) {
 			_actor.getMove().maybeStartOffensiveFollow(target, attackRange);
 			return;
