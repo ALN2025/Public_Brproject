@@ -639,18 +639,19 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
             final List<Quest> scripts = _actor.getTemplate().getEventQuests(EventHandler.SEE_CREATURE);
             if (!scripts.isEmpty()) {
                 
-                for (Playable pl : _actor.getKnownType(Playable.class)) {
+                
+                _actor.forEachKnownType(Playable.class, pl -> {
                     
                     if (Config.MOB_AGGRO_IN_PEACEZONE && _actor instanceof Monster monster && monster.getTemplate().getAggro() && pl.isInsideZone(ZoneId.PEACE)) {
                         monster.abortAll(true);
                         monster.removeAllAttackDesire();
                         monster.teleportTo(monster.getSpawnLocation(), 0);
-                        continue; 
+                        return; 
                     }
                     
                     final Player player = pl.getActingPlayer();
                     if (player == null || player.isSpawnProtected() || player.isFlying() || !player.getAppearance().isVisible()) {
-                        continue;
+                        return;
                     }
                     
                     final boolean isInRange = _actor.isIn3DRadius(pl, _actor.getSeeRange());
@@ -667,13 +668,13 @@ public class NpcAI<T extends Npc> extends CreatureAI<T>
                         }
                     } else if (isInRange) {
                         if (pl.isSilentMoving() && !_actor.getTemplate().canSeeThrough()) {
-                            continue;
+                            return;
                         }
                         
                         _seenCreatures.add(pl);
                         for (Quest quest : scripts) quest.onSeeCreature(_actor, pl);
                     }
-                }
+                });
             }
         }
         
