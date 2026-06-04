@@ -113,9 +113,12 @@ public class ProcessManagerService {
         command.add("-XX:+TieredCompilation");
         command.add("-XX:TieredStopAtLevel=4");
         
-        command.add("-XX:+AutoCreateSharedArchive");
-        command.add("-XX:SharedArchiveFile=cache/brproject_cds.jsa");
-        command.add("-Xlog:cds=error");
+        if (tipo.equals("gameserver"))
+        {
+            command.add("-XX:+AutoCreateSharedArchive");
+            command.add("-XX:SharedArchiveFile=cache/brproject_cds.jsa");
+            command.add("-Xlog:cds=error");
+        }
 
         command.add("-cp");
         command.add(cpString);

@@ -33,6 +33,7 @@ import ext.mods.commons.logging.CLogger;
 import ext.mods.commons.mmocore.SelectorConfig;
 import ext.mods.commons.mmocore.SelectorThread;
 import ext.mods.commons.pool.ConnectionPool;
+import ext.mods.commons.Team;
 import ext.mods.commons.util.JvmOptimizer;
 import ext.mods.loginserver.data.manager.GameServerManager;
 import ext.mods.loginserver.data.manager.IpBanManager;
@@ -54,6 +55,7 @@ public class LoginServer
 	
 	public static void main(String[] args) throws Exception
 	{
+		Team.infoLoginServer();
 		JvmOptimizer.initialize();
 		
 		_loginServer = new LoginServer();
@@ -127,8 +129,6 @@ public class LoginServer
 			System.out.println("Logging config not found at: " + logFile.getAbsolutePath());
 		}
 
-		
-		
 		StringUtil.printSection("Config");
 		Config.loadLoginServer();
 		

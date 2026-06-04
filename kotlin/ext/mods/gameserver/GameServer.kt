@@ -47,6 +47,7 @@ import ext.mods.commons.mmocore.SelectorThread
 import ext.mods.commons.network.IPv4Filter
 import ext.mods.commons.pool.ConnectionPool
 import ext.mods.commons.pool.ThreadPool
+import ext.mods.commons.Team
 import ext.mods.commons.util.JvmOptimizer
 import ext.mods.commons.util.SysUtil
 import ext.mods.Config
@@ -227,6 +228,7 @@ class GameServer : Runnable {
                 System.setProperty("sun.java2d.d3d", "false")
                 System.setProperty("sun.java2d.pmoffscreen", "false")
             }
+            Team.infoGameServer()
             JvmOptimizer.initialize()
             GameServer(args)
         }

@@ -89,9 +89,25 @@ public final class JvmOptimizer
 			return;
 		
 		_initialized = true;
-		configureJvmOptimizerLogger();
 		
 		final String javaVersion = System.getProperty("java.version");
+		final int majorVersion = getMajorVersion(javaVersion);
+		
+		if (!isVerboseStartup())
+		{
+			configureSilentLogger();
+			if (majorVersion >= 25)
+				applyJdk25Optimizations();
+			else
+				applyStandardOptimizations();
+			checkAndOptimizeAppCDS();
+			suggestGcSettings(majorVersion);
+			initializeHealthMonitoring();
+			return;
+		}
+		
+		configureJvmOptimizerLogger();
+		
 		final String javaVendor = System.getProperty("java.vendor");
 		
 		LOGGER.info("");
@@ -101,8 +117,6 @@ public final class JvmOptimizer
 		LOGGER.info("");
 		LOGGER.info("  Informacoes do Ambiente Java:");
 		LOGGER.info("     - Versao: {} ({})", javaVersion, javaVendor);
-		
-		final int majorVersion = getMajorVersion(javaVersion);
 		
 		if (majorVersion >= 25)
 		{
@@ -1149,6 +1163,29 @@ public final class JvmOptimizer
 	 * Configura o logger do JvmOptimizer para evitar timestamp e nome de classe,
 	 * mantendo apenas a mensagem limpa no console.
 	 */
+	private static boolean isVerboseStartup()
+	{
+		return "true".equalsIgnoreCase(System.getProperty("brproject.jvm.verbose"));
+	}
+
+	/** Boot silencioso: sem console do JvmOptimizer (so banner Team no stdout). */
+	private static void configureSilentLogger()
+	{
+		if (_loggerConfigured)
+			return;
+		
+		_loggerConfigured = true;
+		
+		final Logger logger = Logger.getLogger(JvmOptimizer.class.getName());
+		logger.setUseParentHandlers(false);
+		for (Handler handler : logger.getHandlers())
+			logger.removeHandler(handler);
+		logger.setLevel(Level.OFF);
+	}
+
+	/**
+	 * Console do JvmOptimizer (somente com -Dbrproject.jvm.verbose=true).
+	 */
 	private static void configureJvmOptimizerLogger()
 	{
 		if (_loggerConfigured)
@@ -1165,7 +1202,7 @@ public final class JvmOptimizer
 		}
 		
 		final ConsoleHandler consoleHandler = new ConsoleHandler();
-		consoleHandler.setLevel(Level.ALL);
+		consoleHandler.setLevel(isVerboseStartup() ? Level.ALL : Level.SEVERE);
 		consoleHandler.setFormatter(new NoTimestampConsoleFormatter());
 		logger.addHandler(consoleHandler);
 		logger.setLevel(Level.ALL);
