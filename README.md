@@ -29,7 +29,7 @@ O BrProject é um emulador completo de servidor de Lineage 2, composto por:
 - **Ban-L2jDev** - Sistema de segurança
 - **Warman** - Gameplay e balanceamento
 - **SrEli** - Database e SQL
-- **Dev ⩿ A.L.N/⪀** *(eu)* - Testes, correções, otimizações e manutenção
+- **Dev ⩿ A.L.N/⪀** - Testes, correções, otimizações e manutenção
 
 ### **Colaboradores:**
 Nattan Felipe, Diego Fonseca, Junin, ColdPlay, Denky, MecBew, Eduardo.SilvaL2J, biLL, xpower, xTech, kakuzo, Tiagorosendo, Schuster, LucasStark, damedd
