@@ -1,0 +1,69 @@
+Arquivos modificados (6 arquivos):
+
+java/ext/mods/gameserver/model/actor/move/MovementIntegration.java
+java/ext/mods/gameserver/model/entity/autofarm/ZoneBuilder.java
+java/ext/mods/gameserver/model/entity/autofarm/zone/form/ZoneCylinderZ.java
+java/ext/mods/gameserver/model/entity/autofarm/AutoFarmManager.java
+java/ext/mods/gameserver/model/entity/autofarm/zone/AutoFarmRoute.java
+java/ext/mods/gameserver/model/entity/autofarm/zone/AutoFarmZone.java
+
+Arquivos inclusos neste pacote:
+
+correcao/auto-farm-visual/
+├── LEIA-ME.txt
+├── ARQUIVOS.txt
+├── image.png
+└── src/
+    └── java/ext/mods/gameserver/
+        ├── model/actor/move/MovementIntegration.java
+        ├── model/entity/autofarm/ZoneBuilder.java
+        ├── model/entity/autofarm/AutoFarmManager.java
+        ├── model/entity/autofarm/zone/form/ZoneCylinderZ.java
+        ├── model/entity/autofarm/zone/AutoFarmRoute.java
+        └── model/entity/autofarm/zone/AutoFarmZone.java
+
+Mudanças por arquivo (TODOS DESABILITADOS):
+
+1. MovementIntegration.java:
+   - Método visualizeFarmLimit() completamente desabilitado (retorno vazio)
+   - Não mostra mais círculo quando jogador tenta sair da área de farm
+
+2. ZoneBuilder.java:
+   - Método previewCylinderCalc() desabilitado (retorno vazio)
+   - Métodos previewCylinder() ainda existem mas não desenham nada
+   - Remove preview visual do cilindro/círculo amarelo
+
+3. ZoneCylinderZ.java (ARQUIVO CRÍTICO):
+   - Método visualizeZone() desabilitado (retorno vazio)
+   - Antes desenhava círculo na altura errada (_z1 = chão)
+   - Agora não desenha nada
+
+4. AutoFarmRoute.java:
+   - Método visualizeZone() desabilitado (retorno vazio)
+   - Não mostra mais visualização da rota de auto farm
+
+5. AutoFarmZone.java:
+   - Método visualizeZone() desabilitado (retorno vazio)
+   - Não mostra mais visualização da zona de auto farm
+
+6. AutoFarmManager.java:
+   - Linha 364-365 comentada: não mostra preview quando ajusta range
+   - Método showOpenPreviewTemporary() completamente desabilitado
+   - Remove task periódica que mostrava preview do círculo
+
+Total de arquivos: 6
+Linhas modificadas: ~90
+Pacote: auto-farm-visual
+Data: 09/07/2026
+Versão: 3.0 (correção completa - todos métodos desabilitados)
+
+Meus commits:
+- fix: remove-auto-farm-yellow-circle-visualization-20260709-v2
+- chore: disable-all-auto-farm-circle-rendering-methods  
+- refactor: keep-functionality-remove-visuals-only
+- docs: update-correction-package-with-complete-changes
+
+Status: ✅ Eu corrigi, compilei e testei
+JAR que eu atualizei: libs/server.jar
+
+Dev ⩿ A.L.N/⪀

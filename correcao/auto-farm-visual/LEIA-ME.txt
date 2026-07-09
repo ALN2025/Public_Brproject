@@ -1,0 +1,48 @@
+Deixo aqui a correção que eu fiz para remover o círculo amarelo do auto farm no meu projeto BrProject.
+
+Eu estava testando o auto farm e percebi que tinha um problema visual que estava me incomodando:
+- O círculo amarelo aparecia nas paredes das catacombs e ficava feio
+- Em área aberta mostrava um círculo grande que distraia a jogabilidade
+- Eu não queria ver essa marcação visual no meu servidor
+- Decidi remover só o visual, mantendo toda a funcionalidade do auto farm
+
+## Arquivos que eu modifiquei (6 arquivos):
+
+1. **MovementIntegration.java** - Desabilitei o `visualizeFarmLimit()` completamente
+2. **ZoneBuilder.java** - Desabilitei `previewCylinderCalc()` e `previewCylinder()`
+3. **ZoneCylinderZ.java** - Desabilitei `visualizeZone()` (arquivo CRÍTICO do problema)
+4. **AutoFarmRoute.java** - Desabilitei `visualizeZone()`
+5. **AutoFarmZone.java** - Desabilitei `visualizeZone()`
+6. **AutoFarmManager.java** - Comentei o preview quando ajusta range e a task periódica
+
+## O que eu consegui corrigir testando:
+
+✅ **Ao ativar auto farm** - Sem círculo amarelo  
+✅ **Ao ajustar range de ataque** - Sem preview visual  
+✅ **Em catacombs/paredes** - Sem marcação feia nas paredes  
+✅ **Em área aberta** - Sem círculo grande com borda amarela  
+✅ **Ao mover-se** - Sem visualização do raio de ataque
+
+## O que eu mantive funcionando no meu servidor:
+
+- Auto farm funciona normalmente (eu testei)
+- Range de ataque aplicado corretamente
+- Limites de área respeitados
+- Apenas a **visualização gráfica** foi removida, a funcionalidade tá toda aí
+
+## Como aplicar minha correção:
+
+1. Copie os arquivos da pasta `src\` para a raiz do projeto
+2. Execute `ant compile` e `ant jar` para recompilar
+3. O server.jar atualizado estará em `libs/server.jar`
+4. Teste o auto farm no seu servidor como eu fiz
+
+## Meus commits (o que eu fiz):
+
+`fix: remove-auto-farm-yellow-circle-visualization-20260709-v2`
+`chore: disable-all-auto-farm-circle-rendering-methods`
+`refactor: keep-functionality-remove-visuals-only`
+`docs: update-correction-package-with-complete-changes`
+
+Dev ⩿ A.L.N/⪀ | Data: 09/07/2026
+Status: ✅ Eu corrigi e testei no meu projeto
