@@ -66,6 +66,10 @@ public class GateKeeperBBSManager extends BaseBBSManager
 		else
 			content = HTMLData.getInstance().getHtm(player.getLocale(), CB_PATH + getFolder() + "50010.htm");
 		
+		// Substituir variáveis de jogador
+		content = content.replaceAll("%name%", player.getName());
+		content = content.replaceAll("%timer%", String.valueOf((int) (System.currentTimeMillis() / 1000)));
+		
 		separateAndSend(content, player);
 	}
 	
