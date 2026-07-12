@@ -32,8 +32,21 @@ public class ZoneCylinderZ extends ZoneCylinder
 	@Override
 	public void visualizeZone(String info, ExServerPrimitive debug)
 	{
-		// DESABILITADO: Não mostrar círculo amarelo da zona de auto farm
-		// Jogador não quer ver marcação visual (fica feio)
-		return;
+		final int count = (int) (2 * Math.PI * _rad / STEP);
+	    final double angle = 2 * Math.PI / count;
+
+	    int prevX = (int) (Math.cos(0) * _rad) + _x;
+	    int prevY = (int) (Math.sin(0) * _rad) + _y;
+
+	    for (int i = 1; i <= count; i++)
+	    {
+	        final int x = (int) (Math.cos(angle * i) * _rad) + _x;
+	        final int y = (int) (Math.sin(angle * i) * _rad) + _y;
+
+	        debug.addLine("", Color.YELLOW, true, prevX, prevY, _z1, x, y, _z1);
+
+	        prevX = x;
+	        prevY = y;
+	    }
 	}
 }

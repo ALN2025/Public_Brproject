@@ -360,9 +360,8 @@ public class AutoFarmManager
 						autoFarmProfile.setRadius(range);
 				}
 				
-				// DESABILITADO: Não mostrar círculo amarelo quando ajusta range
-				// if (!autoFarmProfile.isEnabled())
-				// 	ZoneBuilder.getInstance().previewCylinder(player, autoFarmProfile.getFinalRadius());
+				if (!autoFarmProfile.isEnabled())
+					ZoneBuilder.getInstance().previewCylinder(player, autoFarmProfile.getFinalRadius());
 			}
 		}
 		
@@ -1257,16 +1256,15 @@ public class AutoFarmManager
 	
 	private void showOpenPreviewTemporary(Player player, int radius)
 	{
-		// DESABILITADO: Não mostrar preview temporário do círculo amarelo
-		// final ScheduledFuture<?> task = ThreadPool.scheduleAtFixedRate(() -> {
-		// 	ZoneBuilder.getInstance().clearAllPreview(player);
-		// 	ZoneBuilder.getInstance().previewCylinder(player, radius);
-		// }, 0, 100);
-		// 
-		// ThreadPool.schedule(() -> {
-		// 	task.cancel(false);
-		// 	ThreadPool.schedule(() -> ZoneBuilder.getInstance().clearAllPreview(player), 150);
-		// }, 3000);
+		final ScheduledFuture<?> task = ThreadPool.scheduleAtFixedRate(() -> {
+			ZoneBuilder.getInstance().clearAllPreview(player);
+			ZoneBuilder.getInstance().previewCylinder(player, radius);
+		}, 0, 100);
+		
+		ThreadPool.schedule(() -> {
+			task.cancel(false);
+			ThreadPool.schedule(() -> ZoneBuilder.getInstance().clearAllPreview(player), 150);
+		}, 3000);
 	}
 	
 	public void stopPlayer(AutoFarmProfile autoFarmProfile, String msg)

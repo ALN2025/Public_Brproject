@@ -77,9 +77,7 @@ public class AutoFarmZone extends AutoFarmArea
 	@Override
 	public void visualizeZone(ExServerPrimitive debug)
 	{
-		// DESABILITADO: Não mostrar visualização da zona de auto farm
-		// Jogador não quer ver marcação visual (fica feio)
-		return;
+		getZone().visualizeZone("ZONA " + getName(), debug);
 	}
 	
 	@Override

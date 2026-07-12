@@ -154,9 +154,30 @@ public class ZoneBuilder
 	
 	private static void previewCylinderCalc(Player player, ExServerPrimitive debug, int radius, Color color, Location center)
 	{
-		// DESABILITADO: Não mostrar preview do cilindro/círculo amarelo
-		// Jogador não quer ver marcação visual
-		return;
+		final int centerX = center.getX();
+		final int centerY = center.getY();
+		
+		final int centerZ = center.getZ(); 
+		
+		final int count = (int) (2 * Math.PI * radius / (radius / 5)); 
+		final double angle = 2 * Math.PI / count;
+		
+		int prevX = (int) (Math.cos(0) * radius) + centerX;
+		int prevY = (int) (Math.sin(0) * radius) + centerY;
+		int prevZ = GeoEngine.getInstance().getHeight(prevX, prevY, centerZ);
+		
+		for (int i = 1; i <= count; i++)
+		{
+			final int x = (int) (Math.cos(angle * i) * radius) + centerX;
+			final int y = (int) (Math.sin(angle * i) * radius) + centerY;
+			final int z = GeoEngine.getInstance().getHeight(x, y, centerZ);
+			
+			debug.addLine("", color, true, prevX, prevY, prevZ, x, y, z);
+			
+			prevX = x;
+			prevY = y;
+			prevZ = z;
+		}
 	}
 	
 	public void previewFinalArea(AutoFarmProfile autoFarmProfile, int areaId)

@@ -55,9 +55,7 @@ public class AutoFarmRoute extends AutoFarmArea
 	@Override
 	public void visualizeZone(ExServerPrimitive debug)
 	{
-		// DESABILITADO: Não mostrar visualização da rota de auto farm
-		// Jogador não quer ver marcação visual (fica feio)
-		return;
+		getZone().visualizeZone("ROTA " + getName(), debug);
 	}
 	
 	@Override

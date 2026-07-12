@@ -29,7 +29,6 @@ import ext.mods.commons.pool.ThreadPool;
 import ext.mods.gameserver.geoengine.GeoEngine;
 import ext.mods.gameserver.geoengine.geodata.IGeoObject;
 import ext.mods.gameserver.model.WorldObject;
-import ext.mods.gameserver.model.actor.move.MovementConfig;
 import ext.mods.gameserver.model.actor.Creature;
 import ext.mods.gameserver.model.actor.Player;
 import ext.mods.gameserver.model.entity.autofarm.AutoFarmManager;
@@ -148,9 +147,26 @@ public class MovementIntegration
 
     private static void visualizeFarmLimit(Player player, Location center, int radius)
     {
-        // DESABILITADO: Não mostrar círculo amarelo quando auto farm está ativo
-        // Jogador não quer ver marcação visual nas paredes ou área aberta
-        return;
+        if (!MovementConfig.DEBUG_ENABLED) return;
+
+        ExServerPrimitive packet = new ExServerPrimitive("FarmLimit", center);
+        int pointCount = 40;
+        double angleSlice = 2 * Math.PI / pointCount;
+        
+        int prevX = (int) (center.getX() + radius * Math.cos(0));
+        int prevY = (int) (center.getY() + radius * Math.sin(0));
+        int z = center.getZ() + 10;
+
+        for (int i = 1; i <= pointCount; i++)
+        {
+            double angle = i * angleSlice;
+            int curX = (int) (center.getX() + radius * Math.cos(angle));
+            int curY = (int) (center.getY() + radius * Math.sin(angle));
+            packet.addLine(Color.RED, prevX, prevY, z, curX, curY, z);
+            prevX = curX;
+            prevY = curY;
+        }
+        player.sendPacket(packet);
     }
 
     public static void initializeMovementSystem(Creature creature) { 
