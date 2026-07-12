@@ -278,7 +278,7 @@ public class RandomManager
 					formatted += " [DWARVEN Only]";
 				}
 				if (zData != null && zData.isEnchanterZone()) {
-					formatted += " [Enchanter Zone - PvP Ativo - Chance: " + zData.getEnchantChance() + "% - Max: +" + zData.getMaxEnchant() + "]";
+					formatted += " [Enchanter Zone - PvP Ativo - Chance: " + zData.getEnchantChance() + "\\% - Max: +" + zData.getMaxEnchant() + "]";
 				}
 				World.announceToOnlinePlayers(config.getName() + ": " + formatted, true); 
 			}
