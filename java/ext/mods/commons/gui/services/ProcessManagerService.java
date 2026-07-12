@@ -20,6 +20,7 @@ package ext.mods.commons.gui.services;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -204,6 +205,11 @@ public class ProcessManagerService {
         command.add("-Xms" + memoryMB + "m");
         command.add("-Xmx" + memoryMB + "m");
         
+        // Forçar UTF-8 no stdout/stderr do filho para evitar corrupção de acentos/Unicode
+        command.add("-Dfile.encoding=UTF-8");
+        command.add("-Dsun.stdout.encoding=UTF-8");
+        command.add("-Dsun.stderr.encoding=UTF-8");
+        
         if (ThemeManager.isSafeGraphics()) {
             command.add("-Dsun.java2d.opengl=false");
             command.add("-Dsun.java2d.d3d=false");
@@ -236,9 +242,10 @@ public class ProcessManagerService {
             command.add(userEmail);
         }
 
-        System.out.println("\n--- COMANDO JVM OTIMIZADO ---");
-        System.out.println(String.join(" ", command));
-        System.out.println("-----------------------------\n");
+        // Desabilitado: ocultando log do comando JVM para manter painel limpo
+        // System.out.println("\n--- COMANDO JVM OTIMIZADO ---");
+        // System.out.println(String.join(" ", command));
+        // System.out.println("-----------------------------\n");
 
         new Thread(() -> {
             try {
@@ -247,7 +254,7 @@ public class ProcessManagerService {
                 pb.redirectErrorStream(true);
                 Process processo = pb.start();
 
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(processo.getInputStream()))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(processo.getInputStream(), StandardCharsets.UTF_8))) {
                     String linha;
                     while ((linha = reader.readLine()) != null) {
                         System.out.println("[" + tipo.toUpperCase() + "] " + linha);
