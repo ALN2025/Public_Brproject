@@ -2,12 +2,13 @@
 *.class
 *.rej
 *.class.encrypted
-*.md
 *.encrypted
 *.pyc
 *.py
 *.lock
 *.probe
+*.md
+.project
 
 # Log file
 *.log
@@ -29,6 +30,7 @@
 *.encrypted
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+.idea/*
 hs_err_pid*
 replay_pid*
 bin/

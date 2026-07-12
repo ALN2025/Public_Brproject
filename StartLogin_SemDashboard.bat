@@ -2,6 +2,9 @@
 title Brproject - Login
 color 0A
 
+REM --- Habilita cores ANSI no console (cmd.exe) antes do Java imprimir o banner ---
+call "%~dp0cache\brproject-ansi.inc.bat"
+
 call "%~dp0cache\brproject-java.inc.bat"
 
 REM ===== Inicializador sem dashboard elaborado By Eduardo.SilvaL2J =====

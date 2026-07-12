@@ -26,8 +26,8 @@ public final class BrProjectMeta
 
 	public static final String TEAM = "BRPROJECT";
 	public static final String BRAND = "Brproject";
-	public static final String DISTRIB_MODE = "MODO DISTRIBUICAO (Brproject_Distribution)";
-	public static final String BUILD_LINE = "BUILD 2026 | 3.8 | Brproject";
-	public static final String CORE_LINE = "CORE: Dhousefe-L2JBR | Agazes33 | Ban-L2jDev | Warman | SrEli | Dev < A.L.N/>";
-	public static final String SIGNATURE = "Dev < A.L.N/>";
+	public static final String DISTRIB_MODE = "DISTRIBUICAO FREE L2JBRASIL";
+	public static final String BUILD_LINE = "PROIBIDO COMERCIALIZAR OU VENDER ESTE SERVIDOR, SEJA DE FORMA DIRETA OU INDIRETA.";
+	public static final String CORE_LINE = "DEVS: Dhousefe-L2JBR | Agazes33 | Ban-NEXORA | Warman | SrEli | < A.L.N/>";
+	public static final String SIGNATURE = "< A.L.N/>";
 }
