@@ -237,12 +237,183 @@ tools/install_db.sh
 - **Agathion** — companheiros com efeitos de teleport
 - **Player God** — sistema de deificação
 
-### Combat & Balance
+### Combate & Balance
 - **Balance por Classe** — ajuste fino de dano/defesa por ClassId
 - **PvP Data** — rankings e recompensas PvP
 - **Enchant Data** — taxas e limites de enchant customizados
 - **Equipment Grade Restriction** — restrições por grau de equip
 - **Polymorph** — transformações
+
+## PixMod (Mod PIX / Donation — Dev A.L.N.)
+
+O **PixMod** é um módulo completo de **doações in-game** com integração a múltiplos gateways de pagamento (PIX, PayPal, Binance/Crypto), cotações de moeda em tempo real, fila assíncrona de pagamentos, envio de e-mail automático e bypass multi-idioma. Está implementado em 21 arquivos sob `java/ext/mods/PixMod/`.
+
+### Estrutura de Pacotes
+
+```
+ext/mods/PixMod/
+├── donation/
+│   ├── DonationAnnounce.java        # broadcast global ao receber item doado
+│   └── DonationBypassAdapter.java   # roteador de bypass (pix / pay / donation)
+└── donationmanager/
+    ├── DonationManager.java         # orquestrador (singleton, 1300+ linhas)
+    ├── CheckoutChoice.java          # seleção dinâmica de métodos
+    ├── CurrencyManager.java         # cotações fiat + crypto (Binance API)
+    ├── DonationData.java            # tabela em memória de compras ativas
+    ├── DDSConverter.java            # parse de QR-code PIX (BR Code / EMV)
+    ├── Mailersend.java              # envio de e-mail via API MailerSend
+    ├── IPaymentHandler.java         # interface comum dos gateways
+    ├── paymenthandlers/
+    │   ├── MercadoPago.java         # PIX dinâmico + link de pagamento
+    │   ├── binance/{Binance,Order}.java  # pagamento em cripto
+    │   └── paypal/{PayPal,Invoice}.java  # PayPal link/invoice
+    ├── purchase/
+    │   ├── PaymentMethod.java       # enum MP_PIX | MP_LINK | PAYPAL | BINANCE
+    │   ├── Purchase.java            # registro imutável de compra
+    │   └── PurchaseStatus.java      # CREATED, PENDING, WAITING, PAID, ...
+    └── tasks/
+        ├── DonationTaskManager.java # scheduler das tasks de cotação
+        ├── CryptoCurrencyTask.java  # cotação cripto (AwesomeAPI ou CoinBase)
+        ├── FiatCurrencyTask.java    # cotação fiat (AwesomeAPI)
+        └── DonationAutomaticPaymentTask.java  # polling dos pagamentos pendentes
+```
+
+### Ativação (master switch)
+
+Tudo dentro do PixMod é controlado por duas flags em `mods.properties` (ou `language.properties`/`donation.properties`):
+
+```properties
+ENABLE_PIX_MOD=true
+DONATION_ENABLED=true
+```
+
+A combinação `ENABLE_PIX_MOD && DONATION_ENABLED` é checada em cada bypass (`DonationBypassAdapter.tryHandle`) e na inicialização do `DonationManager` (`GameServer.kt` chama `net.sf.donationmanager.DonationManager.getInstance()` no boot).
+
+### Comandos do Jogador
+
+| Comando | HTML servido | Locale de UI |
+|---|---|---|
+| `.pix` | `game/data/html/mods/donation/pt/` | `pt` |
+| `.pay` | `game/data/html/mods/donation/en/` | `en` |
+| `.donation` | `game/data/html/mods/donation/` (genérico) | `pt` por padrão |
+
+Os comandos são registrados no `BypassHandler` / `RequestBypassToServer` e roteados por `DonationBypassAdapter.tryHandle()`. Bypass suporta prefixo opcional `-h` (HTML legacy) e aceita formas antigas (`bypass pix htm index.htm`) que são normalizadas automaticamente.
+
+### Fluxo de uma Doação
+
+1. Jogador digita `.pix` → `BypassHandler` chama `DonationBypassAdapter.tryHandle(player, "pix")` → define `donation_html_locale=pt` no `Player.getMemos()` → `DonationManager.handleBypass(player, "index")`.
+2. `DonationManager` envia `NpcHtmlMessage(HTML_ID=9999)` com `index_single.htm`, mostrando métodos de pagamento ativos (de `Config.DONATION_MP_PIX` / `_LINK` / `_PAYPAL_LINK` / `_BINANCE_PAY`).
+3. Jogador escolhe quantidade + método → bypass `donation checkoutChoice <method> <qnt>`.
+4. `DonationManager.checkoutChoice()`:
+   - **PIX** (`MP_PIX`): gera BR Code via `DDSConverter`, registra `Purchase(PENDING, PIX_CODE, EXPIRATION_TIME)` e envia e-mail (se `DONATION_MP_PIX_MAIL=true`).
+   - **Link MP** (`MP_LINK`): cria preferência no Mercado Pago, retorna URL de checkout.
+   - **PayPal**: cria invoice (`PayPal.createOrder`) com `DONATION_PAYPAL_PRICE` × quantidade.
+   - **Binance**: lista crypto aceitas + cotação em tempo real de `CurrencyManager`.
+5. `DonationAutomaticPaymentTask` (scheduled, `DONATION_CHECK_TIME` ms) faz polling dos pagamentos com status `WAITING/PENDING`, atualiza para `PAID/CANCELLED`, e ao pagar:
+   - Envia item `DONATION_PURCHASABLE_ITEM` × quantidade via `MailManager` ou `Player.addItem`.
+   - Se `ANNOUNCE_DONATOR_ITEM_GLOBAL=true`, chama `DonationAnnounce.broadcast(player, item)`.
+   - Envia e-mail de confirmação (`Mailersend`).
+   - Aplica regras de limpeza (`DONATION_DELETE_PAYMENT_DATA` / `DONATION_DELETE_INACTIVE`).
+
+### Gateways de Pagamento Suportados
+
+| Gateway | Configs principais | Como funciona |
+|---|---|---|
+| **PIX** (Mercado Pago) | `DONATION_MP_PIX`, `DONATION_MP_TOKEN`, `DONATION_MP_PIX_PRICE`, `DONATION_MP_PIX_EXPIRATION_TIME`, `DONATION_MP_PIX_DROPDOWN[]`, `DONATION_MP_PIX_ACCOUNT_OWNER/CPF/BANK` | QR Code dinâmico EMV/BR Code gerado por `DDSConverter` (lib `com.google.zxing`), pago via app do banco. |
+| **Mercado Pago Link** | `DONATION_MP_LINK`, `DONATION_MP_TOKEN`, `DONATION_MP_LINK_PRICE`, `DONATION_MP_CURRENCY`, `DONATION_MP_LINK_DROPDOWN[]` | Checkout web MP, suporta múltiplas moedas (`DONATION_MP_CURRENCIES[]`). |
+| **PayPal** | `DONATION_PAYPAL_LINK`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_SANDBOX_ENABLED`, `_CURRENCY`, `_DROPDOWN[]`, `_ACCOUNT_EMAIL` | Invoice API; sandbox opcional para testes. |
+| **Binance (Crypto)** | `DONATION_BINANCE_PAY`, `_API_KEY`, `_SECRET_KEY`, `_PRICE`, `_FIAT_CURRENCY`, `_PAY_CURRENCY[]`, `_DROPDOWN[]` | Recebe pagamento em crypto (BTC/ETH/USDT etc.) convertido para fiat via cotação da `CurrencyManager`. |
+
+### Sistema de Cotação de Moedas (`CurrencyManager`)
+
+- **Fiat** (`FiatCurrencyTask`, `DONATION_CURRENCY_TASK_INTERVAL` ms): AwesomeAPI (`DONATION_CURRENCY_AWESOMEAPI=true`) ou CoinBase (`DONATION_CURRENCY_CB_API_KEY`).
+- **Crypto** (`CryptoCurrencyTask`, `DONATION_BINANCE_CURRENCY_TASK_INTERVAL` ms): Binance public ticker quando `DONATION_BINANCE_PAY=true`.
+- Conversões cacheadas em `Map<String, BigDecimal>` (chave = `CRYPTO + FIAT`).
+- `isCryptoAvailable(String)`, `getCryptoCurrencies()`, `convertFiat(...)` e `convertCrypto(...)` são as APIs públicas usadas por `DonationManager` para calcular o preço exibido ao jogador.
+
+### Status de Compra (`PurchaseStatus`)
+
+```
+CREATED  → PENDING (link/QR gerado) → WAITING (aguardando pagamento)
+                                          ↓
+                                       PAID  → entrega de item
+                                       CANCELLED (timeout DONATION_PAY_TIME / DONATION_CHECK_TIME)
+                                       EXPIRED
+```
+
+`DONATION_HIDE_ENDED=true` esconde compras finalizadas da listagem do jogador.
+
+### Envio de E-mail
+
+- Provedor: **MailerSend** (`DONATION_MAILER_TOKEN`, `DONATION_MAILER_ADDRESS`, `DONATION_MAILER_TEMPLATE`).
+- Limite por hora: `DONATION_MAXIMUM_NUMBER_EMAILS`.
+- Templates HTML em `game/data/html/mail/`.
+- `Mailersend.sendAsync(...)` é non-blocking (roda em `ThreadPool`).
+- Filtro de e-mails permitidos: `DONATION_ALLOWED_EMAILS[]` (vazio = aceita todos).
+
+### Anti-Flood / Segurança
+
+- Bypass `donation` passa por `FloodProtector` (já existente no engine).
+- `DONATION_REQUIRE_TERMS=true` exige aceite de termos (`table_terms.htm`) antes de prosseguir.
+- Validação de e-mail e player online antes de gerar pagamento.
+- `CurrencyManager` nunca confia em valor enviado pelo cliente — preço sempre é recalculado server-side.
+
+### Configurações Completas (`donation.properties`)
+
+Todas as ~60 chaves abaixo ficam em `game/config/donation.properties`:
+
+| Categoria | Chaves |
+|---|---|
+| **Master** | `ENABLE_PIX_MOD`, `DONATION_ENABLED`, `DONATION_SERVER_NAME`, `DONATION_PAY_TIME`, `DONATION_CHECK_TIME` |
+| **Item entregue** | `DONATION_PURCHASABLE_ITEM` (itemId), `ANNOUNCE_DONATOR_ITEM_GLOBAL` |
+| **Comportamento de UI** | `DONATION_CALCULATOR`, `DONATION_DROPDOWN`, `DONATION_HIDE_ENDED`, `DONATION_DELETE_INACTIVE`, `DONATION_DELETE_PAYMENT_DATA`, `DONATION_REQUIRE_TERMS` |
+| **PIX** | `DONATION_MP_PIX`, `_TOKEN`, `_PIX_PRICE`, `_PIX_EXPIRATION_TIME`, `_PIX_MAIL`, `_PIX_ACCOUNT_OWNER/CPF/BANK`, `_PIX_DROPDOWN[]` |
+| **MP Link** | `DONATION_MP_LINK`, `_LINK_PRICE`, `_CURRENCY`, `_CURRENCIES[]`, `_LINK_EXPIRATION_TIME`, `_LINK_DROPDOWN[]`, `_LINK_MAIL` |
+| **PayPal** | `DONATION_PAYPAL_LINK`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_PRICE`, `_SANDBOX_ENABLED`, `_ACCOUNT_EMAIL`, `_MAIL`, `_CURRENCY`, `_CURRENCIES[]`, `_DROPDOWN[]`, `_LINK_EXPIRATION_TIME`, `_WEBSITE`, `_NOTE_MSG`, `_LOGO_IMAGE`, `_PHONE_CODE`, `_PHONE_NUMBER` |
+| **Binance** | `DONATION_BINANCE_PAY`, `_API_KEY`, `_SECRET_KEY`, `_PRICE`, `_FIAT_CURRENCY`, `_PAY_CURRENCY[]`, `_DROPDOWN[]`, `_EXPIRATION_TIME`, `_MAIL` |
+| **Cotação** | `DONATION_CURRENCY_CB_API_KEY`, `DONATION_CURRENCY_AWESOMEAPI`, `DONATION_CURRENCY_TASK_INTERVAL`, `DONATION_BINANCE_CURRENCY_TASK_INTERVAL` |
+| **E-mail** | `DONATION_MAILER_TOKEN`, `_ADDRESS`, `_TEMPLATE`, `DONATION_MAXIMUM_NUMBER_EMAILS`, `DONATION_ALLOWED_EMAILS[]` |
+
+### CountryLocaleManager (auto-detecção de idioma por IP)
+
+Implementado em `java/ext/mods/gameserver/data/manager/CountryLocaleManager.java`. Quando o jogador entra no mundo (`EnterWorld`), o manager dispara uma consulta assíncrona (não bloqueia login) à API `ip-api.com`:
+
+```
+GET http://ip-api.com/json/<IP>?fields=status,country,countryCode
+```
+
+- Se o `countryCode` (ex: `"BR"`, `"US"`, `"RU"`) estiver no `CountryLocaleMap`, aplica `player.setLocale(Locale.forLanguageTag(...))`.
+- IPs privados (10/8, 172.16/12, 192.168/16, 127/8, 169.254/16, `::1`, `fe80::/10`) são **ignorados** sem chamada HTTP.
+- Cache de idem-potência por `objectId` impede re-aplicação em re-entradas.
+- Timeout: `CountryLocaleTimeoutMs` (default 2500 ms).
+
+Configuração em `game/config/language.properties`:
+
+```properties
+CountryLocaleEnable=true       # master switch
+CountryLocaleNotify=true       # envia sysstring 12100-12102 ao jogador
+CountryLocaleAutoSet=true      # aplica setLocale() (se false, só notifica)
+CountryLocaleApiUrl=http://ip-api.com/json/%s?fields=status,country,countryCode
+CountryLocaleTimeoutMs=2500
+CountryLocaleMap=BR=pt-BR,US=en-US,RU=ru-RU,PT=pt-BR,GB=en-US,FR=en-US,DE=en-US,ES=en-US,IT=en-US
+```
+
+Sysstrings (em todos os locales `game/data/locale/<lang>/sysstring.xml`, chaves `12100..12102`):
+- **12100**: "Seu idioma foi definido automaticamente como `{locale}` com base na sua localização ({country})."
+- **12101**: "Idioma desconhecido para o país `{country}`. Mantendo `{locale}`."
+- **12102**: "Não foi possível detectar sua localização. Mantendo `{locale}`."
+
+### Locales Suportados
+
+A pasta `game/data/locale/` contém três locales ativos (carregados em `Config.LOCALES`):
+
+| Locale | Pasta no disco (Java `Locale.toString()`) | Config tag (BCP-47) |
+|---|---|---|
+| Inglês (EUA) | `en_US/` | `en-US` |
+| Português (Brasil) | `pt_BR/` | `pt-BR` |
+| Russo | `ru_RU/` | `ru-RU` |
+
+**Importante**: o nome da pasta em disco segue `Locale.toString()` (com underscore), mas a entrada em `language.properties` (`locales=en-US,pt-BR,ru-RU`) usa BCP-47 (com hífen). O `Config` faz `Locale.forLanguageTag("pt-BR")` que retorna um `Locale` cujo `.toString()` é `pt_BR`, e o `AbstractLocaleData.resolve()` consulta a pasta correta.
 
 ### Eventos
 - **Capture the Flag (CTF)**
