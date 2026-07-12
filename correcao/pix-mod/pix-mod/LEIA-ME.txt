@@ -1,0 +1,40 @@
+Mod PIX / DonationManager — Dev A.L.N.
+========================================
+
+Deixo aqui o pacote no mesmo formato do mod original (database / java / pack),
+pronto para enviar ou instalar no BrProject.
+
+Estrutura:
+  database/     SQL (donations, payments, fix PIX)
+  java/         codigo servidor (donationmanager + integracao ext.mods)
+  pack/         config + HTML in-game
+  build-deps.txt  dependencias Gradle a adicionar
+
+O que mudou:
+  - Pagamento/Moeda (Payment/Currency): botoes so visuais (action=" ") — nao alteram layout
+  - QR Code: titulo QRCODE (janela normal, nao Tutorial) e Fechar cancela a compra
+  - .pix: caixinhas PIX + BRL marcadas (nao PayPal)
+  - .pay: caixinhas PayPal + USD; textos EN so onde ja era no HTML en/
+  - Corrigido crash do .pay (cambio BRL→USD ainda nao carregado)
+  - Comandos .pix (PT) e .pay (EN) — fluxo principal (Pix.java)
+  - CB SERVICES: Comprar Coin of Luck → voiced_pix (= .pix)
+  - CB SERVICES: Buy Coin of Luck → voiced_pay (= .pay)
+  - Removido _bbspix / PixBBSManager (dava conflito no CB)
+  - DonationPixAccess: fecha CB antes de abrir a loja
+  - html/mods/donation/en/: textos estaticos em ingles
+  - DonationManager: banners, botoes e mensagens EN quando .pay (pasta en/)
+
+Como aplicar no BrProject:
+  1) Rode database\*.sql no MySQL do gameserver (fix_pix se coluna qrcode falhar).
+  2) Copie java\net\sf\ e java\ext\ para a raiz java\ do projeto.
+  3) Copie java\kotlin\ext\mods\gameserver\GameServer.kt para kotlin\ext\mods\gameserver\.
+  4) Copie pack\config\* para game\config\ (donation.properties + custom\Pix.properties).
+  5) Copie pack\html\mods\donation\ para game\data\html\mods\donation\.
+  5b) Copie pack\html\CommunityBoard\custom\donate\ para game\data\html\CommunityBoard\custom\donate\.
+  6) Adicione as linhas de build-deps.txt no build.gradle.kts.
+  7) gradlew jar — reinicie login e game — teste .pix, .pay e botoes no CB (SERVICES).
+
+Arquivos: ARQUIVOS.txt
+
+Dev ⩿ A.L.N/⪀ | fix(pix-mod): HTML original + PIX/BRL e PayPal/USD + .pay crash | PR criado 11/07/2026
+Status: ✅ Eu corrigi, compilei, testei e criei o PR no repositório oficial

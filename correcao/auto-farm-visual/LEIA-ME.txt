@@ -39,10 +39,17 @@ Eu estava testando o auto farm e percebi que tinha um problema visual que estava
 
 ## Meus commits (o que eu fiz):
 
-`fix: remove-auto-farm-yellow-circle-visualization-20260709-v2`
-`chore: disable-all-auto-farm-circle-rendering-methods`
-`refactor: keep-functionality-remove-visuals-only`
-`docs: update-correction-package-with-complete-changes`
+```
+fix: remove-auto-farm-yellow-circle-visualization-20260711
+feat: add-pix-mod-donation-system-20260711
+```
 
-Dev ⩿ A.L.N/⪀ | Data: 09/07/2026
-Status: ✅ Eu corrigi e testei no meu projeto
+## Status do Pull Request
+
+✅ **PR criado no repositório oficial**: https://github.com/Dhousefe/Public_Brproject/pulls
+
+- Auto Farm Visual: Removida visualização do círculo amarelo
+- Pix Mod: Sistema de doações com PIX/PayPal/QRCODE implementado
+
+Dev ⩿ A.L.N/⪀ | Data: 11/07/2026
+Status: ✅ Eu corrigi, compilei, testei e criei o PR

@@ -54,16 +54,14 @@ Mudanças por arquivo (TODOS DESABILITADOS):
 Total de arquivos: 6
 Linhas modificadas: ~90
 Pacote: auto-farm-visual
-Data: 09/07/2026
-Versão: 3.0 (correção completa - todos métodos desabilitados)
+Data: 11/07/2026
+Versão: 4.0 (correção completa + PR)
 
 Meus commits:
-- fix: remove-auto-farm-yellow-circle-visualization-20260709-v2
-- chore: disable-all-auto-farm-circle-rendering-methods  
-- refactor: keep-functionality-remove-visuals-only
-- docs: update-correction-package-with-complete-changes
+- fix: remove-auto-farm-yellow-circle-visualization-20260711
+- feat: add-pix-mod-donation-system-20260711
 
-Status: ✅ Eu corrigi, compilei e testei
+Status: ✅ Eu corrigi, compilei, testei e criei o PR
 JAR que eu atualizei: libs/server.jar
 
 Dev ⩿ A.L.N/⪀

@@ -1,0 +1,33 @@
+correcao/pix-mod/
+  LEIA-ME.txt
+  ARQUIVOS.txt
+  build-deps.txt
+  database/
+    donations.sql
+    donations_payments.sql
+    donations_upgrade_legacy.sql
+    donations_fix_pix.sql
+  java/
+    net/sf/donationmanager/          → java/net/sf/donationmanager/
+    ext/mods/donation/DonationPixAccess.java
+    ext/mods/gameserver/communitybbs/CustomCommunityBoard.java
+    ext/mods/gameserver/communitybbs/custom/PixBBSManager.java
+    ext/mods/gameserver/communitybbs/custom/ServiceBBSManager.java
+    ext/mods/gameserver/handler/voicedcommandhandlers/Pix.java
+    ext/mods/ (Config, bypass, flood, EnterWorld, …)
+    kotlin/ext/mods/gameserver/GameServer.kt → kotlin/ext/mods/gameserver/
+  pack/
+    config/donation.properties         → game/config/
+    config/custom/Pix.properties       → game/config/custom/
+    html/mods/donation/pt|en/          → game/data/html/mods/donation/
+    html/CommunityBoard/custom/donate/ → game/data/html/CommunityBoard/custom/donate/
+
+Bypass CB: _bbspix (PT) | _bbspix;pay (EN) | _bbsgetfav_add;pix
+
+Meus commits (o que eu fiz):
+- feat: add-pix-mod-donation-system-20260711
+
+Status: ✅ Eu corrigi, compilei, testei e criei o PR no repositório oficial
+Data: 11/07/2026
+
+Dev ⩿ A.L.N/⪀
